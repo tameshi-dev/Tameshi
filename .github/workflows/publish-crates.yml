@@ -19,7 +19,8 @@ jobs:
 
       - name: Get version to publish
         run: |
-          VERSION=$(grep "^version" crates/cli/Cargo.toml | head -1 | cut -d'"' -f2)
+          # Get version from workspace root Cargo.toml
+          VERSION=$(grep "^version" Cargo.toml | head -1 | cut -d'"' -f2)
           echo "Publishing version $VERSION"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
 

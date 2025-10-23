@@ -110,13 +110,19 @@ jobs:
     - name: Check version consistency
       uses: actions/checkout@v4
     - run: |
-        VERSION=$(grep '^version' crates/cli/Cargo.toml | head -1 | cut -d '"' -f 2)
-        echo "Expected version: $VERSION"
+        # Get version from workspace root
+        VERSION=$(grep '^version' Cargo.toml | head -1 | cut -d '"' -f 2)
+        echo "Workspace version: $VERSION"
 
+        # Check that all crates use workspace inheritance
         for cargo_file in crates/*/Cargo.toml; do
-          FILE_VERSION=$(grep '^version' "$cargo_file" | head -1 | cut -d '"' -f 2)
-          if [ "$FILE_VERSION" != "$VERSION" ]; then
-            echo "❌ Version mismatch in $cargo_file: $FILE_VERSION != $VERSION"
+          if grep -q '^version.workspace = true' "$cargo_file"; then
+            echo "✅ $cargo_file uses workspace version"
+          elif grep -q "^version = \"$VERSION\"" "$cargo_file"; then
+            echo "✅ $cargo_file has matching version: $VERSION"
+          else
+            FILE_VERSION=$(grep '^version' "$cargo_file" | head -1 | cut -d '"' -f 2 || echo "not found")
+            echo "❌ Version issue in $cargo_file: expected workspace inheritance or $VERSION, got: $FILE_VERSION"
             exit 1
           fi
         done

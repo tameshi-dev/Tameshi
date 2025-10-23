@@ -1,11 +1,11 @@
 [package]
 name = "tameshi-scanners"
-version = "0.1.0"
-edition = "2021"
-authors = ["Gianluca Brigandi"]
-license = "MIT"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
 description = "Vulnerability scanning framework for smart contracts"
-repository = "https://github.com/tameshi-dev/tameshi"
+repository.workspace = true
 
 [dependencies]
 thalir-core = "0.1.0"
