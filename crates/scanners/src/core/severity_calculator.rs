@@ -150,11 +150,10 @@ impl SeverityRule for ReentrancyWithValueRule {
         finding: &Finding,
         _context: &SeverityContext,
     ) -> Option<SeverityAdjustment> {
-        if finding.scanner_id == "reentrancy-simple" {
-            if finding.description.contains("withdraw") || finding.description.contains("transfer")
-            {
-                return Some(SeverityAdjustment::SetTo(Severity::Critical));
-            }
+        if finding.scanner_id == "reentrancy-simple"
+            && (finding.description.contains("withdraw") || finding.description.contains("transfer"))
+        {
+            return Some(SeverityAdjustment::SetTo(Severity::Critical));
         }
         None
     }

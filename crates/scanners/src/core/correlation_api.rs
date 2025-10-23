@@ -147,10 +147,8 @@ pub fn merge_correlated_findings(findings: Vec<Finding>) -> Result<Vec<Finding>>
             }
 
             merged.push(best_finding);
-        } else {
-            if let Some(finding) = group.findings.values().next() {
-                merged.push(finding.clone());
-            }
+        } else if let Some(finding) = group.findings.values().next() {
+            merged.push(finding.clone());
         }
     }
 

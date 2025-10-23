@@ -50,6 +50,7 @@ impl RepresentationBundle {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn add<T: Representation + 'static>(mut self, representation: T) -> Self {
         self.representations.insert(
             TypeId::of::<T>(),

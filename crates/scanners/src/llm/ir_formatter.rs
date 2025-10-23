@@ -390,13 +390,8 @@ impl IRFormatter {
     }
 
     fn instruction_uses_value(&self, inst: &Instruction, value_id: ValueId) -> bool {
-        match inst {
-            Instruction::Assign { value, .. } => {
-                if let Value::Register(id) = value {
-                    return *id == value_id;
-                }
-            }
-            _ => {}
+        if let Instruction::Assign { value: Value::Register(id), .. } = inst {
+            return *id == value_id;
         }
         false
     }

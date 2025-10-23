@@ -246,7 +246,7 @@ impl Finding {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FindingMetadata {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub affected_functions: Vec<String>,
@@ -280,20 +280,6 @@ pub struct RepresentationInfo {
     pub included_functions: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub included_contracts: Vec<String>,
-}
-
-impl Default for FindingMetadata {
-    fn default() -> Self {
-        Self {
-            affected_functions: Vec::new(),
-            affected_variables: Vec::new(),
-            affected_contracts: Vec::new(),
-            recommendation: None,
-            references: Vec::new(),
-            gas_impact: None,
-            representation_info: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -83,7 +83,7 @@ fn parse_version_constraint(constraint: &str) -> Option<SolidityVersion> {
         return None;
     }
 
-    let major = parts.get(0)?.parse::<u32>().ok()?;
+    let major = parts.first()?.parse::<u32>().ok()?;
     let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
     let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
 

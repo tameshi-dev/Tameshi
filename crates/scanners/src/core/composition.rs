@@ -87,13 +87,14 @@ impl Scanner for CompositeScanner {
     }
 }
 
+// Reduce type complexity for sequential stages
+type StageFn = Box<dyn Fn(&[Finding]) -> bool + Send + Sync>;
+type Stage = (Arc<dyn Scanner>, StageFn);
+
 pub struct SequentialScanner {
     id: String,
     name: String,
-    stages: Vec<(
-        Arc<dyn Scanner>,
-        Box<dyn Fn(&[Finding]) -> bool + Send + Sync>,
-    )>,
+    stages: Vec<Stage>,
 }
 
 impl SequentialScanner {
@@ -202,6 +203,12 @@ pub struct ParallelScanner {
     scanners: Vec<Arc<dyn Scanner>>,
 }
 
+impl Default for ParallelScanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ParallelScanner {
     pub fn new() -> Self {
         Self {
@@ -209,7 +216,7 @@ impl ParallelScanner {
         }
     }
 
-    pub fn add<S: Scanner + 'static>(mut self, scanner: S) -> Self {
+    pub fn with_scanner<S: Scanner + 'static>(mut self, scanner: S) -> Self {
         self.scanners.push(Arc::new(scanner));
         self
     }

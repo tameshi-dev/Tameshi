@@ -109,11 +109,9 @@ impl IRAccessControlScanner {
                             }
                         }
                         
-                        Instruction::Call { target, .. } => {
-                            if let thalir_core::instructions::CallTarget::External(_) = target {
-                                has_state_modifications = true;
-                                state_mod_instructions.push((block_id, idx, instruction));
-                            }
+                        Instruction::Call { target: thalir_core::instructions::CallTarget::External(_), .. } => {
+                            has_state_modifications = true;
+                            state_mod_instructions.push((block_id, idx, instruction));
                         }
                         
                         Instruction::Selfdestruct { .. } => {
@@ -242,24 +240,22 @@ impl IRAccessControlScanner {
             for instruction in &block.instructions {
                 match instruction {
                     Instruction::Eq { result, left, right } => {
-                        if std::ptr::eq(result, condition) {
-                            if self.is_msg_sender_value(left, function) || 
-                               self.is_msg_sender_value(right, function) {
-                                return true;
-                            }
+                        if std::ptr::eq(result, condition)
+                            && (self.is_msg_sender_value(left, function) ||
+                               self.is_msg_sender_value(right, function)) {
+                            return true;
                         }
                     }
-                    
+
                     Instruction::Lt { result, left, right } |
                     Instruction::Gt { result, left, right } |
                     Instruction::Le { result, left, right } |
                     Instruction::Ge { result, left, right } |
                     Instruction::Ne { result, left, right } => {
-                        if std::ptr::eq(result, condition) {
-                            if self.is_msg_sender_value(left, function) || 
-                               self.is_msg_sender_value(right, function) {
-                                return true;
-                            }
+                        if std::ptr::eq(result, condition)
+                            && (self.is_msg_sender_value(left, function) ||
+                               self.is_msg_sender_value(right, function)) {
+                            return true;
                         }
                     }
                     
@@ -278,12 +274,10 @@ impl IRAccessControlScanner {
 
         for (_block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
-                if let Instruction::GetContext { result, var } = instruction {
-                    if let thalir_core::instructions::ContextVariable::MsgSender = var {
+                if let Instruction::GetContext { result, var: thalir_core::instructions::ContextVariable::MsgSender } = instruction {
                         let ptr = result as *const thalir_core::values::Value;
                         msg_sender_values.insert(ptr);
                         worklist.push(ptr);
-                    }
                 }
             }
         }
@@ -317,14 +311,12 @@ impl IRAccessControlScanner {
     fn involves_role_check(&self, condition: &thalir_core::values::Value, function: &thalir_core::function::Function) -> bool {
         for (_block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
-                match instruction {
-                    Instruction::MappingLoad { result, key, .. } => {
-                        if self.value_contributes_to_condition(result, condition, function) &&
-                           self.is_msg_sender_value(key, function) {
-                            return true;
-                        }
+                if let Instruction::MappingLoad { result, key, .. } = instruction {
+                    if self.value_contributes_to_condition(result, condition, function)
+                        && self.is_msg_sender_value(key, function)
+                    {
+                        return true;
                     }
-                    _ => {}
                 }
             }
         }
@@ -366,12 +358,9 @@ impl IRAccessControlScanner {
         let is_critical_function = critical_function_patterns.iter()
             .any(|pattern| func_lower.contains(pattern));
 
-        let has_privileged_storage = state_modifications.iter().any(|(_, _, instr)| {
-            match instr {
-                Instruction::StorageStore { .. } => true,
-                _ => false,
-            }
-        });
+        let has_privileged_storage = state_modifications
+            .iter()
+            .any(|(_, _, instr)| matches!(instr, Instruction::StorageStore { .. }));
 
         if has_critical_ops || (is_critical_function && has_privileged_storage) {
             Severity::High
@@ -407,8 +396,7 @@ impl IRAccessControlScanner {
     fn check_weak_access_control(&mut self, contract: &Contract, func_name: &str, function: &thalir_core::function::Function) {
         for (block_id, block) in &function.body.blocks {
             for (idx, instruction) in block.instructions.iter().enumerate() {
-                if let Instruction::GetContext { result: _, var } = instruction {
-                    if let thalir_core::instructions::ContextVariable::TxOrigin = var {
+                if let Instruction::GetContext { result: _, var: thalir_core::instructions::ContextVariable::TxOrigin } = instruction {
                         let location = super::provenance::get_instruction_location(
                             contract,
                             func_name,
@@ -429,7 +417,6 @@ impl IRAccessControlScanner {
                         .with_location(location)
                         .with_contract(&contract.name)
                         .with_function(func_name));
-                    }
                 }
             }
         }

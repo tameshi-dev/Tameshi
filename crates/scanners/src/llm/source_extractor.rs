@@ -77,8 +77,8 @@ impl SoliditySourceExtractor {
                 let end = (i + 4).min(lines.len());
 
                 result.push(format!("// Lines {}-{}", start + 1, end));
-                for j in start..end {
-                    result.push(lines[j].to_string());
+                for line in lines.iter().take(end).skip(start) {
+                    result.push(line.to_string());
                 }
                 result.push("".to_string());
             }
@@ -101,23 +101,21 @@ impl SoliditySourceExtractor {
                 || line.contains(" -= ")
                 || line.contains(" *= "))
                 && !line.trim().starts_with("//")
+                && !line.contains("memory")
+                && !line.contains("let ")
+                && !line.contains("var ")
+                && !line.contains("uint256 ")
+                && !line.contains("address ")
+                && !line.contains("bool ")
             {
-                if !line.contains("memory")
-                    && !line.contains("let ")
-                    && !line.contains("var ")
-                    && !line.contains("uint256 ")
-                    && !line.contains("address ")
-                    && !line.contains("bool ")
-                {
-                    let start = i.saturating_sub(1);
-                    let end = (i + 2).min(lines.len());
+                let start = i.saturating_sub(1);
+                let end = (i + 2).min(lines.len());
 
-                    result.push(format!("// Line {}", i + 1));
-                    for j in start..end {
-                        result.push(lines[j].to_string());
-                    }
-                    result.push("".to_string());
+                result.push(format!("// Line {}", i + 1));
+                for line in lines.iter().take(end).skip(start) {
+                result.push(line.to_string());
                 }
+                result.push("".to_string());
             }
         }
 
@@ -171,8 +169,8 @@ impl SoliditySourceExtractor {
                 let end = (i + 3).min(lines.len());
 
                 result.push(format!("// Lines {}-{}", start + 1, end));
-                for j in start..end {
-                    result.push(lines[j].to_string());
+                for line in lines.iter().take(end).skip(start) {
+                    result.push(line.to_string());
                 }
                 result.push("".to_string());
             }

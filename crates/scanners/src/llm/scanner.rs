@@ -302,8 +302,10 @@ impl LLMScanner {
             ),
         );
 
-        let mut metadata = FindingMetadata::default();
-        metadata.recommendation = Some(finding.recommendation.clone());
+        let mut metadata = FindingMetadata {
+            recommendation: Some(finding.recommendation.clone()),
+            ..Default::default()
+        };
 
         for component in &finding.affected_components {
             if let Some(contract) = &component.contract {

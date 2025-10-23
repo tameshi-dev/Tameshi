@@ -229,8 +229,8 @@ fn transform_to_ir(source: &str, args: &AnalyzeArgs) -> Result<IRContract> {
     let contracts = transform_solidity_to_ir(source)
         .context("Failed to transform Solidity to IR")?;
 
-    Ok(contracts.into_iter().next()
-        .ok_or_else(|| anyhow::anyhow!("No contracts found in source"))?)
+    contracts.into_iter().next()
+        .ok_or_else(|| anyhow::anyhow!("No contracts found in source"))
 }
 
 fn create_context(ir: IRContract, _source: String) -> Result<AnalysisContext> {
@@ -309,7 +309,7 @@ fn generate_text_output(
 
     let mut by_severity: HashMap<Severity, Vec<&Finding>> = HashMap::new();
     for finding in findings {
-        by_severity.entry(finding.severity).or_insert_with(Vec::new).push(finding);
+        by_severity.entry(finding.severity).or_default().push(finding);
     }
 
     for severity in [Severity::Critical, Severity::High, Severity::Medium, Severity::Low, Severity::Informational] {
@@ -350,14 +350,11 @@ fn generate_text_output(
                 writeln!(&mut output, "    Scanner: {} {}", scanner_type, finding.scanner_id)?;
 
                 if let Some(ref provenance) = finding.provenance {
-                    match &provenance.validation_status {
-                        tameshi_scanners::core::provenance::ValidationStatus::Confirmed { confirming_scanners, .. } => {
-                            writeln!(&mut output, "    {} Cross-validated by: {}",
-                                "✓".green(),
-                                confirming_scanners.join(", ")
-                            )?;
-                        }
-                        _ => {}
+                    if let tameshi_scanners::core::provenance::ValidationStatus::Confirmed { confirming_scanners, .. } = &provenance.validation_status {
+                        writeln!(&mut output, "    {} Cross-validated by: {}",
+                            "✓".green(),
+                            confirming_scanners.join(", ")
+                        )?;
                     }
                 }
 

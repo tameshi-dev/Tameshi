@@ -267,11 +267,9 @@ impl IRIntegerOverflowScanner {
                         }
                     }
                     
-                    Instruction::Call { result, target, .. } => {
-                        if let thalir_core::instructions::CallTarget::External(_) = target {
-                            if std::ptr::eq(result, value) {
-                                return true;
-                            }
+                    Instruction::Call { result, target: thalir_core::instructions::CallTarget::External(_), .. } => {
+                        if std::ptr::eq(result, value) {
+                            return true;
                         }
                     }
                     

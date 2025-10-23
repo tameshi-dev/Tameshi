@@ -252,11 +252,8 @@ impl IRReentrancyScanner {
             return false;
         }
 
-        let has_explicit_guard =
-            safe_analysis.has_pattern(SafePattern::ReentrancyGuard) ||
-            safe_analysis.has_pattern(SafePattern::MutexLock);
-
-        has_explicit_guard
+        safe_analysis.has_pattern(SafePattern::ReentrancyGuard)
+            || safe_analysis.has_pattern(SafePattern::MutexLock)
     }
     
     pub fn get_findings(&self) -> Vec<Finding> {

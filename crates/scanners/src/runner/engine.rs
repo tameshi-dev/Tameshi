@@ -128,7 +128,7 @@ impl ScanningEngine {
         for finding in findings {
             let fp = FindingFingerprint::from_finding(&finding, &base_path);
             let key = fp.grouping_key();
-            coarse_groups.entry(key).or_insert_with(Vec::new).push(finding);
+            coarse_groups.entry(key).or_default().push(finding);
         }
 
         let mut deduped = Vec::new();
@@ -247,7 +247,7 @@ impl ScanReport {
         for finding in self.findings {
             let fp = FindingFingerprint::from_finding(&finding, &base_path);
             let key = fp.grouping_key();
-            coarse_groups.entry(key).or_insert_with(Vec::new).push(finding);
+            coarse_groups.entry(key).or_default().push(finding);
         }
 
         let mut deduped = Vec::new();
@@ -327,7 +327,7 @@ impl ScanReport {
         let mut md = String::from("# Scan Report\n\n");
 
         let count = self.count_by_severity();
-        md.push_str(&format!("## Summary\n\n"));
+        md.push_str("## Summary\n\n");
         md.push_str(&format!("- Critical: {}\n", count.critical));
         md.push_str(&format!("- High: {}\n", count.high));
         md.push_str(&format!("- Medium: {}\n", count.medium));
@@ -335,7 +335,7 @@ impl ScanReport {
         md.push_str(&format!("- Informational: {}\n\n", count.informational));
 
         if let Some(stats) = &self.deduplication_stats {
-            md.push_str(&format!("## Deduplication\n\n"));
+            md.push_str("## Deduplication\n\n");
             md.push_str(&format!("- Original findings: {}\n", stats.original_count));
             md.push_str(&format!("- After deduplication: {}\n", stats.deduped_count));
             md.push_str(&format!("- Removed duplicates: {}\n", stats.removed_count));
@@ -364,7 +364,7 @@ impl ScanReport {
                             md.push_str(&format!("  ```\n  {}\n  ```\n", snippet));
                         }
                     }
-                    md.push_str("\n");
+                    md.push('\n');
                 }
             }
         }

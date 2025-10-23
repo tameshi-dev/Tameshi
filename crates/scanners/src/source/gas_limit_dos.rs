@@ -52,7 +52,7 @@ impl SourceGasLimitDoSScanner {
         }
 
         let dynamic_names = ["participants", "recipients", "addresses", "users", "investors", "voters"];
-        dynamic_names.iter().any(|&name| name == array_name)
+        dynamic_names.contains(&array_name)
     }
 
     fn analyze_function<'a>(

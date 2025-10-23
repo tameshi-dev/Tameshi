@@ -140,6 +140,12 @@ pub struct RepresentationConfigBuilder {
     config: RepresentationConfig,
 }
 
+impl Default for RepresentationConfigBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RepresentationConfigBuilder {
     pub fn new() -> Self {
         Self {

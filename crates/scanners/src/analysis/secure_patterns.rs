@@ -153,10 +153,9 @@ impl SecurePatternRecognizer {
             }
         }
 
-        if line_content.contains(".transfer(") && !line_content.contains(".send(") {
-            if line_content.contains("payable") || line_content.contains("{value:") {
-                return true; // Native ETH transfer - safe
-            }
+        if line_content.contains(".transfer(") && !line_content.contains(".send(")
+            && (line_content.contains("payable") || line_content.contains("{value:")) {
+            return true; // Native ETH transfer - safe
         }
 
         false

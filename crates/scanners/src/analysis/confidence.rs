@@ -114,7 +114,7 @@ impl ConfidenceScorer {
             negative_factors.push(ConfidenceFactor::TestCode);
         }
 
-        score = score.max(0.0).min(1.0);
+        score = score.clamp(0.0, 1.0);
 
         let explanation = self.explain_reentrancy_score(score, &positive_factors, &negative_factors);
 
@@ -168,7 +168,7 @@ impl ConfidenceScorer {
             negative_factors.push(ConfidenceFactor::TestCode);
         }
 
-        score = score.max(0.0).min(1.0);
+        score = score.clamp(0.0, 1.0);
 
         let explanation = self.explain_access_control_score(score, &positive_factors, &negative_factors);
 
@@ -211,7 +211,7 @@ impl ConfidenceScorer {
             negative_factors.push(ConfidenceFactor::TestCode);
         }
 
-        score = score.max(0.0).min(1.0);
+        score = score.clamp(0.0, 1.0);
 
         let explanation = self.explain_unchecked_return_score(score, &positive_factors, &negative_factors);
 

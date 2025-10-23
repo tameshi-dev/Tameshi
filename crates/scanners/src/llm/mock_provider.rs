@@ -15,6 +15,12 @@ pub struct MockLLMProvider {
     should_fail: bool,
 }
 
+impl Default for MockLLMProvider {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockLLMProvider {
     pub fn new() -> Self {
         Self {

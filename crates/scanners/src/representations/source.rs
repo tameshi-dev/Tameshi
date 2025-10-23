@@ -282,7 +282,7 @@ impl<'a> SourceExtractor<'a> {
 
             for capture in match_.captures {
                 let capture_name = &query.capture_names()[capture.index as usize];
-                match capture_name.as_ref() {
+                match *capture_name {
                     "modifier" => modifier_node = Some(capture.node),
                     "mod_name" => mod_name = Some(capture.node),
                     "mod_body" => mod_body = Some(capture.node),
@@ -331,7 +331,7 @@ impl<'a> SourceExtractor<'a> {
 
             for capture in match_.captures {
                 let capture_name = &query.capture_names()[capture.index as usize];
-                match capture_name.as_ref() {
+                match *capture_name {
                     "function" => func_node = Some(capture.node),
                     "func_name" => func_name = Some(capture.node),
                     "func_body" => func_body = Some(capture.node),
@@ -604,7 +604,7 @@ impl<'a> SourceExtractor<'a> {
 
             for capture in match_.captures {
                 let capture_name = &query.capture_names()[capture.index as usize];
-                match capture_name.as_ref() {
+                match *capture_name {
                     "assignment" => assignment_node = Some(capture.node),
                     "left" => left_node = Some(capture.node),
                     "right" => right_node = Some(capture.node),
@@ -667,11 +667,10 @@ impl<'a> SourceExtractor<'a> {
             let parent_kind = parent.kind();
             let parent_text = self.source[parent.byte_range()].to_string();
 
-            if parent_kind == "variable_declaration" || parent_kind == "assignment_expression" {
-                if parent_text.contains("bool")
-                    || parent_text.contains("(") && parent_text.contains("success") {
-                    return Ok(true);
-                }
+            if (parent_kind == "variable_declaration" || parent_kind == "assignment_expression")
+                && (parent_text.contains("bool")
+                    || parent_text.contains("(") && parent_text.contains("success")) {
+                return Ok(true);
             }
 
             if parent_text.contains("require(")

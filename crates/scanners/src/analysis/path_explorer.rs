@@ -207,15 +207,12 @@ impl PathExplorer {
             let call_pos = call_path.blocks.iter().position(|&b| b == call_block);
             let mod_pos = state_mod_path.blocks.iter().position(|&b| b == mod_block);
 
-            match (call_pos, mod_pos) {
-                (Some(cp), Some(mp)) => {
-                    if cp < mp {
-                        return true; // Different blocks, mod after call
-                    } else if cp == mp {
-                        return mod_idx > call_idx; // Same block, check instruction order
-                    }
+            if let (Some(cp), Some(mp)) = (call_pos, mod_pos) {
+                if cp < mp {
+                    return true; // Different blocks, mod after call
+                } else if cp == mp {
+                    return mod_idx > call_idx; // Same block, check instruction order
                 }
-                _ => {}
             }
         }
 

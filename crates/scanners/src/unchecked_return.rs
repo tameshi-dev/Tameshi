@@ -43,29 +43,28 @@ impl IRUncheckedReturnScanner {
                             _ => false,
                         };
 
-                        if is_external_or_delegatecall {
-                            if !self.is_call_result_checked(result, function, block_id, idx) {
-                                let location = super::provenance::get_instruction_location(
-                                    contract,
-                                    func_name,
-                                    block_id,
-                                    idx,
-                                );
+                        if is_external_or_delegatecall
+                            && !self.is_call_result_checked(result, function, block_id, idx) {
+                            let location = super::provenance::get_instruction_location(
+                                contract,
+                                func_name,
+                                block_id,
+                                idx,
+                            );
 
-                                self.findings.push(Finding::new(
-                                    "unchecked-return".to_string(),
-                                    Severity::Medium,
-                                    Confidence::High,
-                                    format!("Unchecked return value in '{}'", func_name),
-                                    format!(
-                                        "Function '{}' in contract '{}' ignores return value from external call to {:?}",
-                                        func_name, contract.name, target
-                                    ),
-                                )
-                                .with_location(location)
-                                .with_contract(&contract.name)
-                                .with_function(func_name));
-                            }
+                            self.findings.push(Finding::new(
+                                "unchecked-return".to_string(),
+                                Severity::Medium,
+                                Confidence::High,
+                                format!("Unchecked return value in '{}'", func_name),
+                                format!(
+                                    "Function '{}' in contract '{}' ignores return value from external call to {:?}",
+                                    func_name, contract.name, target
+                                ),
+                            )
+                            .with_location(location)
+                            .with_contract(&contract.name)
+                            .with_function(func_name));
                         }
                     }
                 }
@@ -172,10 +171,9 @@ impl IRUncheckedReturnScanner {
                     Instruction::Ne { result: res, left, right } |
                     Instruction::And { result: res, left, right } |
                     Instruction::Or { result: res, left, right } => {
-                        if std::ptr::eq(res, condition) {
-                            if std::ptr::eq(left, result) || std::ptr::eq(right, result) {
-                                return true;
-                            }
+                        if std::ptr::eq(res, condition)
+                            && (std::ptr::eq(left, result) || std::ptr::eq(right, result)) {
+                            return true;
                         }
                     }
                     _ => {}

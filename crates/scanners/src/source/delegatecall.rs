@@ -21,7 +21,7 @@ impl SourceDelegatecallScanner {
     fn extract_delegatecall_target<'a>(&self, expr_text: &'a str) -> Option<&'a str> {
         if let Some(delegatecall_pos) = expr_text.find(".delegatecall(") {
             let before = &expr_text[..delegatecall_pos];
-            let target = before.trim().split_whitespace().last()?;
+            let target = before.split_whitespace().last()?;
             Some(target)
         } else {
             None

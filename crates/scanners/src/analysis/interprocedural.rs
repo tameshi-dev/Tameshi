@@ -169,9 +169,8 @@ impl InterproceduralAnalyzer {
                 }
 
                 if let Some(callee_summary) = self.summaries.get(&callee_func) {
-                    if callee_summary.modifies_state {
-
-                        if self.has_call_after_external_call(entry_func, &callee_func, contract) {
+                    if callee_summary.modifies_state
+                        && self.has_call_after_external_call(entry_func, &callee_func, contract) {
                             let paths = self.call_graph.find_call_paths(entry_func, &callee_func);
                             let call_path = if !paths.is_empty() {
                                 paths[0].clone()
@@ -193,7 +192,6 @@ impl InterproceduralAnalyzer {
                             };
 
                             patterns.push(pattern);
-                        }
                     }
                 }
             }
@@ -220,14 +218,9 @@ impl InterproceduralAnalyzer {
                             if external_call_position.is_none() {
                                 external_call_position = Some(position);
                             }
-                        } else {
-                            match target {
-                                thalir_core::instructions::CallTarget::Internal(name) => {
-                                    if canonical_match(name, callee) {
-                                        callee_call_position = Some(position);
-                                    }
-                                }
-                                _ => {}
+                        } else if let thalir_core::instructions::CallTarget::Internal(name) = target {
+                            if canonical_match(name, callee) {
+                                callee_call_position = Some(position);
                             }
                         }
                     }

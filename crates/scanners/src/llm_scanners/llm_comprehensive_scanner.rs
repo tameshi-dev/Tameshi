@@ -77,7 +77,7 @@ impl LLMComprehensiveScanner {
     }
 
     pub async fn analyze_source(&self, source_code: &str, contract_name: &str) -> Result<Vec<Finding>> {
-        Self::debug_log(&format!("\n🔬 analyze_source() called (COMPREHENSIVE)"));
+        Self::debug_log("\n🔬 analyze_source() called (COMPREHENSIVE)");
         Self::debug_log(&format!("   Contract: {}", contract_name));
         Self::debug_log(&format!("   Source code length: {} bytes", source_code.len()));
         Self::debug_log(&format!("   Source code lines: {}", source_code.lines().count()));

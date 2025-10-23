@@ -291,10 +291,12 @@ fn scan_single_file(
 
         let mut context = AnalysisContext::new(bundle.clone());
 
-        let mut contract_info = ContractInfo::default();
-        contract_info.name = contract.name.clone();
-        contract_info.source_code = Some(content.clone());
-        contract_info.source_path = Some(path.to_string_lossy().to_string());
+        let contract_info = ContractInfo {
+            name: contract.name.clone(),
+            source_code: Some(content.clone()),
+            source_path: Some(path.to_string_lossy().to_string()),
+            ..Default::default()
+        };
         context.set_contract_info(contract_info);
 
         if let Some(version) = parse_solidity_version(&content) {
@@ -365,7 +367,7 @@ fn scan_single_file(
     eprintln!("\n=== ALL FINDINGS BEFORE FILTERING ===");
     for f in &all_findings {
         eprintln!("  Scanner: {} | Type: {} | Confidence: {} | Score: {}",
-                 f.scanner_id, f.finding_type, f.confidence.to_string(), f.confidence_score);
+                 f.scanner_id, f.finding_type, f.confidence, f.confidence_score);
     }
 
     let confidence_threshold = min_confidence.threshold();
@@ -528,7 +530,7 @@ fn find_solidity_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
         let entry = entry?;
         let path = entry.path();
         
-        if path.is_file() && path.extension().map_or(false, |ext| ext == "sol") {
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "sol") {
             files.push(path.to_path_buf());
         }
     }
@@ -919,14 +921,12 @@ fn should_skip_finding(finding: &Finding) -> bool {
                    lower_name.starts_with("check") {
                     return true;
                 }
-            } else {
-                if lower_name.starts_with("get") ||
-                   lower_name.starts_with("is") ||
-                   lower_name.starts_with("has") ||
-                   lower_name.starts_with("can") ||
-                   lower_name.starts_with("check") {
-                    return true;
-                }
+            } else if lower_name.starts_with("get") ||
+               lower_name.starts_with("is") ||
+               lower_name.starts_with("has") ||
+               lower_name.starts_with("can") ||
+               lower_name.starts_with("check") {
+                return true;
             }
 
             if lower_name.contains("balance") && lower_name.contains("of") {

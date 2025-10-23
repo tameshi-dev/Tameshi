@@ -309,9 +309,9 @@ impl LLMProvider for OpenAIProvider {
         let usage = response
             .usage
             .map(|u| TokenUsage {
-                prompt_tokens: u.prompt_tokens as u32,
-                completion_tokens: u.completion_tokens as u32,
-                total_tokens: u.total_tokens as u32,
+                prompt_tokens: u.prompt_tokens,
+                completion_tokens: u.completion_tokens,
+                total_tokens: u.total_tokens,
             })
             .unwrap_or_default();
 

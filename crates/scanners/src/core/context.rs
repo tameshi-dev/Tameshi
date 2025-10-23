@@ -7,25 +7,13 @@ use std::collections::HashMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ContractInfo {
     pub name: String,
     pub source_path: Option<String>,
     pub source_code: Option<String>,
     pub compiler_version: Option<String>,
     pub optimization_enabled: bool,
-}
-
-impl Default for ContractInfo {
-    fn default() -> Self {
-        Self {
-            name: String::new(),
-            source_path: None,
-            source_code: None,
-            compiler_version: None,
-            optimization_enabled: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]

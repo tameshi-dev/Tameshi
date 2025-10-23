@@ -128,11 +128,7 @@ impl FindingFingerprint {
             return false;
         }
 
-        let line_diff = if self.exact_line > other.exact_line {
-            self.exact_line - other.exact_line
-        } else {
-            other.exact_line - self.exact_line
-        };
+        let line_diff = self.exact_line.abs_diff(other.exact_line);
 
         if line_diff <= 1 {
             return true;
@@ -140,17 +136,12 @@ impl FindingFingerprint {
 
         if !self.function_signature.is_empty() &&
            !other.function_signature.is_empty() &&
-           self.function_signature == other.function_signature {
-            if line_diff <= 20 {
-                return true;
-            }
+           self.function_signature == other.function_signature
+           && line_diff <= 20 {
+            return true;
         }
 
-        let bucket_diff = if self.line_bucket > other.line_bucket {
-            self.line_bucket - other.line_bucket
-        } else {
-            other.line_bucket - self.line_bucket
-        };
+        let bucket_diff = self.line_bucket.abs_diff(other.line_bucket);
 
         bucket_diff <= (line_window / 5).max(1)
     }

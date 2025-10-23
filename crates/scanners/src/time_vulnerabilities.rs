@@ -354,13 +354,13 @@ impl IRTimeVulnerabilityScanner {
                    Instruction::Le { left, right, .. } |
                    Instruction::Ge { left, right, .. } = instruction {
 
-                    if let thalir_core::values::Value::Constant(constant) = right {
-                        if let thalir_core::values::Constant::Uint(value, _) = constant {
-                            let value_str = value.to_string();
-                            if let Ok(val_u64) = value_str.parse::<u64>() {
-                                if val_u64 < 3600 && val_u64 > 0 {
-                                    short_timeframe_constants.push(value.clone());
-                                }
+                    if let thalir_core::values::Value::Constant(
+                        thalir_core::values::Constant::Uint(value, _)
+                    ) = right {
+                        let value_str = value.to_string();
+                        if let Ok(val_u64) = value_str.parse::<u64>() {
+                            if val_u64 < 3600 && val_u64 > 0 {
+                                short_timeframe_constants.push(value.clone());
                             }
                         }
                     }

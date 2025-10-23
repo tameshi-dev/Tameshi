@@ -217,7 +217,7 @@ impl AnalysisEngine {
                                 .clone()
                                 .unwrap_or_default(),
                             confidence_change: ConfidenceChange {
-                                original: det_finding.confidence.clone(),
+                    original: det_finding.confidence,
                                 boosted: Confidence::High, // Simplified
                                 increase_percentage: confidence_boost * 100.0,
                             },

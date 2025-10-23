@@ -99,7 +99,7 @@ impl CorrelationEngine {
     fn enhance_group(&self, group: &CorrelationGroup) -> Vec<Finding> {
         let mut enhanced = Vec::new();
 
-        for (_, finding) in &group.findings {
+        for finding in group.findings.values() {
             let mut enhanced_finding = finding.clone();
 
             if self.confidence_boosting && group.findings.len() > 1 {
@@ -177,6 +177,12 @@ impl CorrelationEngine {
     }
 }
 
+impl Default for CorrelationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub trait CorrelationStrategy: Send + Sync {
     fn calculate_correlation(&self, finding: &Finding, group: &[Finding]) -> Option<f64>;
 
@@ -214,7 +220,7 @@ impl CorrelationStrategy for LocationBasedStrategy {
                         continue;
                     }
 
-                    let line_distance = (loc1.line as i32 - loc2.line as i32).abs() as usize;
+                    let line_distance = (loc1.line as i32 - loc2.line as i32).unsigned_abs() as usize;
 
                     if line_distance == 0 {
                         max_score = f64::max(max_score, 1.0);
@@ -235,6 +241,12 @@ impl CorrelationStrategy for LocationBasedStrategy {
 
     fn name(&self) -> &str {
         "LocationBased"
+    }
+}
+
+impl Default for LocationBasedStrategy {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -267,6 +279,12 @@ impl PatternBasedStrategy {
         );
 
         Self { patterns }
+    }
+}
+
+impl Default for PatternBasedStrategy {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -344,6 +362,12 @@ impl SemanticStrategy {
             .filter(|w| w.len() > 3) // Skip short words
             .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_string())
             .collect()
+    }
+}
+
+impl Default for SemanticStrategy {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -464,23 +488,13 @@ impl CorrelationGroup {
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 pub struct CorrelationResult {
     pub enhanced_findings: Vec<Finding>,
 
     pub correlation_groups: Vec<CorrelationGroup>,
 
     pub statistics: CorrelationStatistics,
-}
-
-impl Default for CorrelationResult {
-    fn default() -> Self {
-        Self {
-            enhanced_findings: Vec::new(),
-            correlation_groups: Vec::new(),
-            statistics: CorrelationStatistics::default(),
-        }
-    }
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -528,7 +542,7 @@ impl CorrelationResult {
 
         report.push_str("# Correlation Analysis Report\n\n");
 
-        report.push_str(&format!("## Summary\n\n"));
+        report.push_str("## Summary\n\n");
         report.push_str(&format!(
             "- Total findings: {}\n",
             self.statistics.total_findings
@@ -582,7 +596,7 @@ impl CorrelationResult {
                         det.confidence, det.confidence_score * 100.0,
                         llm.confidence, llm.confidence_score * 100.0
                     ));
-                    report.push_str("\n");
+                    report.push('\n');
 
                     report.push_str("#### Deterministic Scanner Description:\n");
                     report.push_str("```\n");
@@ -617,7 +631,7 @@ impl CorrelationResult {
                     finding.scanner_id, finding.severity, finding.title, finding.confidence
                 ));
             }
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report

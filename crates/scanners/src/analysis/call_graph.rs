@@ -214,13 +214,13 @@ impl CallGraphBuilder {
                         self.graph
                             .callees
                             .entry(func_name.to_string())
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(call.clone());
 
                         self.graph
                             .callers
                             .entry(callee)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(call);
                     }
 
@@ -238,13 +238,13 @@ impl CallGraphBuilder {
                         self.graph
                             .callees
                             .entry(func_name.to_string())
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(call.clone());
 
                         self.graph
                             .callers
                             .entry(callee)
-                            .or_insert_with(Vec::new)
+                            .or_default()
                             .push(call);
                     }
 

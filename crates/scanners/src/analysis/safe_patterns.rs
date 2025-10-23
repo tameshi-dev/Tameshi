@@ -174,16 +174,12 @@ impl SafePatternRecognizer {
 
         for (block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
-                if self.is_external_call(instruction) {
-                    if first_external_call_block.is_none() {
-                        first_external_call_block = Some(*block_id);
-                    }
+                if self.is_external_call(instruction) && first_external_call_block.is_none() {
+                    first_external_call_block = Some(*block_id);
                 }
 
-                if self.is_state_modification(instruction) {
-                    if first_external_call_block.is_some() {
-                        state_mods_after_call = true;
-                    }
+                if self.is_state_modification(instruction) && first_external_call_block.is_some() {
+                    state_mods_after_call = true;
                 }
             }
         }

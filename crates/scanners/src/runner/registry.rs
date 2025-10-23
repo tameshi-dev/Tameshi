@@ -54,11 +54,7 @@ impl ScannerRegistry {
 
 impl Default for ScannerRegistry {
     fn default() -> Self {
-        let registry = Self::new();
-
-
-
-        registry
+        Self::new()
     }
 }
 

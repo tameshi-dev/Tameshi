@@ -48,10 +48,9 @@ impl SourceClassicReentrancyScanner {
                 return true;
             }
 
-            if !left.contains('.') && !left.contains('[') && !left.contains('(') {
-                if left.chars().next().map(|c| c.is_lowercase()).unwrap_or(false) {
-                    return true;
-                }
+            if !left.contains('.') && !left.contains('[') && !left.contains('(')
+                && left.chars().next().map(|c| c.is_lowercase()).unwrap_or(false) {
+                return true;
             }
         }
         false

@@ -32,17 +32,17 @@ impl SoliditySource {
         for line in content.lines() {
             if let Some(start) = line.find("contract ") {
                 let after_contract = &line[start + 9..];
-                if let Some(end) = after_contract.find(|c: char| c == ' ' || c == '{') {
+                if let Some(end) = after_contract.find([' ', '{']) {
                     names.push(after_contract[..end].to_string());
                 }
             } else if let Some(start) = line.find("interface ") {
                 let after_interface = &line[start + 10..];
-                if let Some(end) = after_interface.find(|c: char| c == ' ' || c == '{') {
+                if let Some(end) = after_interface.find([' ', '{']) {
                     names.push(after_interface[..end].to_string());
                 }
             } else if let Some(start) = line.find("library ") {
                 let after_library = &line[start + 8..];
-                if let Some(end) = after_library.find(|c: char| c == ' ' || c == '{') {
+                if let Some(end) = after_library.find([' ', '{']) {
                     names.push(after_library[..end].to_string());
                 }
             }

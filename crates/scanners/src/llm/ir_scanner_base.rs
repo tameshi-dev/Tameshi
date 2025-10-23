@@ -293,11 +293,8 @@ impl LLMIRScanner for BaseLLMIRScanner {
                     }
                 }
                 
-                match &block.terminator {
-                    Terminator::Branch { .. } => {
-                        summary.has_conditionals = true;
-                    }
-                    _ => {}
+                if let Terminator::Branch { .. } = &block.terminator {
+                    summary.has_conditionals = true;
                 }
             }
             
@@ -433,8 +430,10 @@ Provide a detailed vulnerability analysis. Remember to return valid JSON with a 
                 ),
             );
             
-            let mut metadata = FindingMetadata::default();
-            metadata.recommendation = Some(vuln.recommendation.clone());
+            let mut metadata = FindingMetadata {
+                recommendation: Some(vuln.recommendation.clone()),
+                ..Default::default()
+            };
             
             for component in &vuln.affected_components {
                 if let Some(contract) = &component.contract {

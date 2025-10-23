@@ -276,14 +276,13 @@ fn transform_sol_to_cranelift_ir(args: &TransformArgs) -> Result<()> {
             ));
         }
         let extension = input_path.extension().and_then(|ext| ext.to_str());
-        if extension != Some("sol") {
-            if !args.stdin {
+        if extension != Some("sol")
+            && !args.stdin {
                 eprintln!(
                     "⚠️  Warning: Input file does not have .sol extension: {}",
                     input_path.display()
                 );
             }
-        }
     }
 
     let input = read_input(args)?;

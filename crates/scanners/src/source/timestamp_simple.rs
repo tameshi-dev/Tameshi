@@ -30,7 +30,7 @@ impl SimpleTimestampScanner {
         let is_view_or_pure = func_text.contains(" view") || func_text.contains(" pure");
 
         let looks_like_predicate = function_name.starts_with("is") && function_name.len() > 2 &&
-                                  function_name.chars().nth(2).map_or(false, |c| c.is_uppercase()) &&
+                                  function_name.chars().nth(2).is_some_and(|c| c.is_uppercase()) &&
                                   is_view_or_pure;
 
         let body = match function_node.child_by_field_name("body") {

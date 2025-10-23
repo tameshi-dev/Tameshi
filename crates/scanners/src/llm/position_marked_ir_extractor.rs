@@ -384,7 +384,7 @@ impl RepresentationExtractor for PositionMarkedIRExtractor {
                     contract.name
                 );
 
-                self.extract_from_ir(&contract)
+                self.extract_from_ir(contract)
             }
             Err(e) => {
                 tracing::warn!("Tameshi IR not available in context: {}", e);

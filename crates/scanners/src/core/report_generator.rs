@@ -25,7 +25,7 @@ impl ReportGenerator {
         if let Some(ref path) = response.metadata.source_info.file_path {
             report.push_str(&format!("**File**: `{}`\n", path));
         }
-        report.push_str("\n");
+        report.push('\n');
 
         report.push_str("## Executive Summary\n\n");
         report.push_str(&format!("- **Total Findings**: {}\n", response.summary.total_findings));
@@ -33,7 +33,7 @@ impl ReportGenerator {
         report.push_str(&format!("- **High**: {}\n", response.summary.by_severity.high));
         report.push_str(&format!("- **Medium**: {}\n", response.summary.by_severity.medium));
         report.push_str(&format!("- **Low**: {}\n", response.summary.by_severity.low));
-        report.push_str("\n");
+        report.push('\n');
 
         report.push_str(&format!("**Correlation Summary**: {}\n\n", response.summary.correlation_summary));
 
@@ -56,7 +56,7 @@ impl ReportGenerator {
                 response.summary.by_scanner_type.cross_validated,
                 (response.summary.by_scanner_type.cross_validated as f64 / total) * 100.0));
         }
-        report.push_str("\n");
+        report.push('\n');
 
         if response.correlation_statistics.total_correlations > 0 {
             report.push_str("## Correlation Analysis\n\n");
@@ -72,7 +72,7 @@ impl ReportGenerator {
                 for (strategy, count) in &response.correlation_statistics.strategy_breakdown {
                     report.push_str(&format!("| {} | {} |\n", strategy, count));
                 }
-                report.push_str("\n");
+                report.push('\n');
             }
         }
 
@@ -111,7 +111,7 @@ impl ReportGenerator {
         report.push_str(&format!("- **Deterministic Scanners**: {:.2}s\n", response.performance_metrics.deterministic_duration.as_secs_f64()));
         report.push_str(&format!("- **LLM Scanners**: {:.2}s\n", response.performance_metrics.llm_duration.as_secs_f64()));
         report.push_str(&format!("- **Correlation**: {:.2}s\n", response.performance_metrics.correlation_duration.as_secs_f64()));
-        report.push_str("\n");
+        report.push('\n');
 
         Ok(report)
     }
@@ -143,17 +143,17 @@ impl ReportGenerator {
             };
 
             report.push_str(&format!(
-                "| {} | {} {} | {:?} | {} | {} |\n",
+                "| {} | {} {:?} | {:?} | {} | {} |\n",
                 idx + 1,
                 severity_emoji,
-                format!("{:?}", finding.severity),
+                finding.severity,
                 finding.confidence,
                 Self::truncate(&finding.title, 60),
                 Self::truncate(&finding.scanner_id, 30)
             ));
         }
 
-        report.push_str("\n");
+        report.push('\n');
 
         for (idx, finding) in findings.iter().enumerate() {
             report.push_str(&format!("### {}. {}\n\n", idx + 1, finding.title));
@@ -172,7 +172,7 @@ impl ReportGenerator {
                             ir_pos.position));
                     }
                 }
-                report.push_str("\n");
+                report.push('\n');
             }
         }
     }

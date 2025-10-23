@@ -24,7 +24,7 @@ pub struct AnalysisResponse {
     pub metadata: AnalysisMetadata,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AnalysisSummary {
     pub total_findings: usize,
 
@@ -37,7 +37,7 @@ pub struct AnalysisSummary {
     pub critical_findings: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SeverityBreakdown {
     pub critical: usize,
     pub high: usize,
@@ -46,7 +46,7 @@ pub struct SeverityBreakdown {
     pub informational: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ScannerTypeBreakdown {
     pub deterministic: usize,
     pub llm_based: usize,
@@ -187,40 +187,12 @@ impl AnalysisResponse {
     }
 }
 
-impl Default for AnalysisSummary {
+impl Default for AnalysisResponse {
     fn default() -> Self {
-        Self {
-            total_findings: 0,
-            by_severity: SeverityBreakdown::default(),
-            by_scanner_type: ScannerTypeBreakdown::default(),
-            correlation_summary: String::new(),
-            critical_findings: Vec::new(),
-        }
+        Self::new()
     }
 }
 
-impl Default for SeverityBreakdown {
-    fn default() -> Self {
-        Self {
-            critical: 0,
-            high: 0,
-            medium: 0,
-            low: 0,
-            informational: 0,
-        }
-    }
-}
-
-impl Default for ScannerTypeBreakdown {
-    fn default() -> Self {
-        Self {
-            deterministic: 0,
-            llm_based: 0,
-            correlated: 0,
-            cross_validated: 0,
-        }
-    }
-}
 
 impl Default for CorrelationStatistics {
     fn default() -> Self {

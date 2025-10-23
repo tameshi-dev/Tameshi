@@ -44,6 +44,12 @@ pub struct PromptBuilder {
     templates: HashMap<String, PromptTemplate>,
 }
 
+impl Default for PromptBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PromptBuilder {
     pub fn new() -> Self {
         let mut builder = Self {

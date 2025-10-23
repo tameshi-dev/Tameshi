@@ -156,23 +156,18 @@ impl SourceIntegerOverflowScanner {
                                 eprintln!("Found division");
                                 if let Some(left_node) = node.child_by_field_name("left") {
                                     let mut actual_left = left_node;
-                                    loop {
-                                        match actual_left.kind() {
-                                            "expression" | "parenthesized_expression" => {
-                                                let mut found = false;
-                                                let mut cursor = actual_left.walk();
-                                                for child in actual_left.children(&mut cursor) {
-                                                    if child.is_named() {
-                                                        actual_left = child;
-                                                        found = true;
-                                                        break;
-                                                    }
-                                                }
-                                                if !found {
-                                                    break;
-                                                }
+                                    while let "expression" | "parenthesized_expression" = actual_left.kind() {
+                                        let mut found = false;
+                                        let mut cursor = actual_left.walk();
+                                        for child in actual_left.children(&mut cursor) {
+                                            if child.is_named() {
+                                                actual_left = child;
+                                                found = true;
+                                                break;
                                             }
-                                            _ => break,
+                                        }
+                                        if !found {
+                                            break;
                                         }
                                     }
 
