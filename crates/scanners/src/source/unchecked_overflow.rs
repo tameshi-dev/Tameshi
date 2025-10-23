@@ -1,6 +1,5 @@
-
-use crate::core::{Scanner, Finding, Severity, Confidence, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
 use tree_sitter::Node;
 
@@ -12,14 +11,14 @@ impl SourceUncheckedOverflowScanner {
     }
 
     fn has_arithmetic_ops(&self, text: &str) -> bool {
-        text.contains("+=") ||
-        text.contains("-=") ||
-        text.contains("*=") ||
-        text.contains("/=") ||
-        text.contains(" + ") ||
-        text.contains(" - ") ||
-        text.contains(" * ") ||
-        text.contains(" / ")
+        text.contains("+=")
+            || text.contains("-=")
+            || text.contains("*=")
+            || text.contains("/=")
+            || text.contains(" + ")
+            || text.contains(" - ")
+            || text.contains(" * ")
+            || text.contains(" / ")
     }
 
     fn analyze_function<'a>(
@@ -119,7 +118,6 @@ impl SourceUncheckedOverflowScanner {
 
         findings
     }
-
 }
 
 impl Scanner for SourceUncheckedOverflowScanner {
@@ -152,13 +150,15 @@ impl Scanner for SourceUncheckedOverflowScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
-        parser.set_language(&language)
+        parser
+            .set_language(&language)
             .expect("Failed to load Solidity grammar");
 
         let tree = match parser.parse(source, None) {
@@ -194,7 +194,9 @@ impl SourceUncheckedOverflowScanner {
 
         if kind == "contract_declaration" {
             let current_contract = if let Some(name_node) = node.child_by_field_name("name") {
-                name_node.utf8_text(source.as_bytes()).unwrap_or(contract_name)
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or(contract_name)
             } else {
                 contract_name
             };

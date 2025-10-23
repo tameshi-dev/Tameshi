@@ -7,37 +7,28 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use colored::*;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-use std::collections::HashMap;
 
 use tameshi_scanners::{
-    core::{
-        AnalysisContext,
-        ScannerConfig,
-        get_cross_validated_findings,
-        merge_correlated_findings,
-        CorrelationConfig,
-        Finding,
-        Severity,
-        Confidence,
-        Scanner,
-    },
-    representations::{
-        RepresentationBundle,
-    },
-    reentrancy::IRReentrancyScanner,
     access_control::IRAccessControlScanner,
-    time_vulnerabilities::IRTimeVulnerabilityScanner,
-    integer_overflow::IRIntegerOverflowScanner,
+    core::{
+        get_cross_validated_findings, merge_correlated_findings, AnalysisContext, Confidence,
+        CorrelationConfig, Finding, Scanner, ScannerConfig, Severity,
+    },
     dos_vulnerabilities::IRDoSVulnerabilityScanner,
+    integer_overflow::IRIntegerOverflowScanner,
+    llm::provider::{LLMProvider, OpenAIProvider},
     llm_scanners::LLMComprehensiveScanner,
-    llm::provider::{OpenAIProvider, LLMProvider},
+    reentrancy::IRReentrancyScanner,
+    representations::RepresentationBundle,
+    time_vulnerabilities::IRTimeVulnerabilityScanner,
 };
 
-use thalir_transform::solidity_to_ir::transform_solidity_to_ir;
 use thalir_core::contract::Contract as IRContract;
+use thalir_transform::solidity_to_ir::transform_solidity_to_ir;
 
 #[derive(Args, Debug)]
 pub struct AnalyzeArgs {
@@ -111,7 +102,10 @@ pub async fn execute(args: AnalyzeArgs) -> Result<()> {
         .with_context(|| format!("Failed to read file: {:?}", args.input))?;
 
     if args.verbose {
-        println!("{}", "🔍 Starting comprehensive security analysis...".bright_blue());
+        println!(
+            "{}",
+            "🔍 Starting comprehensive security analysis...".bright_blue()
+        );
         println!("📁 Analyzing: {}", args.input.display());
     }
 
@@ -132,14 +126,18 @@ pub async fn execute(args: AnalyzeArgs) -> Result<()> {
     }
 
     if !args.no_llm {
-        let api_key = args.openai_api_key.clone()
+        let api_key = args
+            .openai_api_key
+            .clone()
             .or_else(|| std::env::var("OPENAI_API_KEY").ok());
 
         if let Some(api_key) = api_key {
             if args.verbose {
                 println!("\n{}", "🤖 Running LLM-powered scanners...".cyan());
             }
-            let llm_findings = run_llm_scanners(&source_code, &contract_name, &api_key, &args.model, &args).await?;
+            let llm_findings =
+                run_llm_scanners(&source_code, &contract_name, &api_key, &args.model, &args)
+                    .await?;
             println!("  Found {} potential issues", llm_findings.len());
             all_findings.extend(llm_findings);
         } else {
@@ -152,7 +150,7 @@ pub async fn execute(args: AnalyzeArgs) -> Result<()> {
     }
 
     let correlation_config = CorrelationConfig {
-        threshold: args.correlation_threshold.min(0.5),  // Use 0.5 as max for better correlation
+        threshold: args.correlation_threshold.min(0.5), // Use 0.5 as max for better correlation
         boost_confidence: true,
         strategies: vec![
             tameshi_scanners::core::CorrelationStrategy::Location,
@@ -163,7 +161,7 @@ pub async fn execute(args: AnalyzeArgs) -> Result<()> {
 
     let correlated_result = tameshi_scanners::core::correlate_findings_with_config(
         all_findings.clone(),
-        correlation_config
+        correlation_config,
     )?;
 
     let final_findings = if args.cross_validated_only {
@@ -177,7 +175,9 @@ pub async fn execute(args: AnalyzeArgs) -> Result<()> {
     let output = match args.format {
         OutputFormat::Text => generate_text_output(&filtered_findings, &correlated_result, &args),
         OutputFormat::Json => generate_json_output(&filtered_findings, &correlated_result),
-        OutputFormat::Markdown => generate_markdown_output(&filtered_findings, &correlated_result, &args),
+        OutputFormat::Markdown => {
+            generate_markdown_output(&filtered_findings, &correlated_result, &args)
+        }
     }?;
 
     if let Some(output_path) = args.output {
@@ -191,11 +191,25 @@ pub async fn execute(args: AnalyzeArgs) -> Result<()> {
         println!("\n{}", "✅ Analysis complete!".green().bold());
         println!("⏱️  Time: {:.2}s", elapsed.as_secs_f64());
         println!("📊 Statistics:");
-        println!("  • Total findings: {}", correlated_result.statistics.total_findings);
-        println!("  • Correlated findings: {}", correlated_result.statistics.correlated_findings);
-        println!("  • Cross-validated groups: {}", correlated_result.statistics.deterministic_llm_correlations);
-        println!("  • High confidence findings: {}",
-            filtered_findings.iter().filter(|f| f.confidence == Confidence::High).count());
+        println!(
+            "  • Total findings: {}",
+            correlated_result.statistics.total_findings
+        );
+        println!(
+            "  • Correlated findings: {}",
+            correlated_result.statistics.correlated_findings
+        );
+        println!(
+            "  • Cross-validated groups: {}",
+            correlated_result.statistics.deterministic_llm_correlations
+        );
+        println!(
+            "  • High confidence findings: {}",
+            filtered_findings
+                .iter()
+                .filter(|f| f.confidence == Confidence::High)
+                .count()
+        );
     }
 
     Ok(())
@@ -226,23 +240,27 @@ fn transform_to_ir(source: &str, args: &AnalyzeArgs) -> Result<IRContract> {
         println!("{}", "📝 Parsing and transforming to IR...".cyan());
     }
 
-    let contracts = transform_solidity_to_ir(source)
-        .context("Failed to transform Solidity to IR")?;
+    let contracts =
+        transform_solidity_to_ir(source).context("Failed to transform Solidity to IR")?;
 
-    contracts.into_iter().next()
+    contracts
+        .into_iter()
+        .next()
         .ok_or_else(|| anyhow::anyhow!("No contracts found in source"))
 }
 
 fn create_context(ir: IRContract, _source: String) -> Result<AnalysisContext> {
-    let bundle = RepresentationBundle::new()
-        .add(ir);
+    let bundle = RepresentationBundle::new().add(ir);
 
     let context = AnalysisContext::with_config(bundle, ScannerConfig::default());
 
     Ok(context)
 }
 
-fn run_deterministic_scanners(context: &AnalysisContext, _args: &AnalyzeArgs) -> Result<Vec<Finding>> {
+fn run_deterministic_scanners(
+    context: &AnalysisContext,
+    _args: &AnalyzeArgs,
+) -> Result<Vec<Finding>> {
     let scanners: Vec<Box<dyn Scanner>> = vec![
         Box::new(IRReentrancyScanner::new()),
         Box::new(IRAccessControlScanner::new()),
@@ -269,13 +287,13 @@ async fn run_llm_scanners(
     model: &str,
     _args: &AnalyzeArgs,
 ) -> Result<Vec<Finding>> {
-    let provider: Arc<dyn LLMProvider> = Arc::new(
-        OpenAIProvider::new(Some(model.to_string()))?
-    );
+    let provider: Arc<dyn LLMProvider> = Arc::new(OpenAIProvider::new(Some(model.to_string()))?);
 
     let llm_comprehensive = LLMComprehensiveScanner::new(provider.clone());
 
-    let findings = llm_comprehensive.analyze_source(source_code, contract_name).await?;
+    let findings = llm_comprehensive
+        .analyze_source(source_code, contract_name)
+        .await?;
 
     Ok(findings)
 }
@@ -285,7 +303,8 @@ fn filter_findings(
     min_severity: Severity,
     min_confidence: Confidence,
 ) -> Vec<Finding> {
-    findings.into_iter()
+    findings
+        .into_iter()
         .filter(|f| f.severity >= min_severity && f.confidence >= min_confidence)
         .collect()
 }
@@ -298,9 +317,21 @@ fn generate_text_output(
     use std::fmt::Write;
     let mut output = String::new();
 
-    writeln!(&mut output, "\n{}", "════════════════════════════════════════".bright_blue())?;
-    writeln!(&mut output, "{}", "     SECURITY ANALYSIS REPORT".bright_blue().bold())?;
-    writeln!(&mut output, "{}", "════════════════════════════════════════".bright_blue())?;
+    writeln!(
+        &mut output,
+        "\n{}",
+        "════════════════════════════════════════".bright_blue()
+    )?;
+    writeln!(
+        &mut output,
+        "{}",
+        "     SECURITY ANALYSIS REPORT".bright_blue().bold()
+    )?;
+    writeln!(
+        &mut output,
+        "{}",
+        "════════════════════════════════════════".bright_blue()
+    )?;
 
     if findings.is_empty() {
         writeln!(&mut output, "\n{}", "✨ No vulnerabilities found!".green())?;
@@ -309,10 +340,19 @@ fn generate_text_output(
 
     let mut by_severity: HashMap<Severity, Vec<&Finding>> = HashMap::new();
     for finding in findings {
-        by_severity.entry(finding.severity).or_default().push(finding);
+        by_severity
+            .entry(finding.severity)
+            .or_default()
+            .push(finding);
     }
 
-    for severity in [Severity::Critical, Severity::High, Severity::Medium, Severity::Low, Severity::Informational] {
+    for severity in [
+        Severity::Critical,
+        Severity::High,
+        Severity::Medium,
+        Severity::Low,
+        Severity::Informational,
+    ] {
         if let Some(severity_findings) = by_severity.get(&severity) {
             let severity_color = match severity {
                 Severity::Critical => "CRITICAL".red().bold(),
@@ -322,7 +362,9 @@ fn generate_text_output(
                 Severity::Informational => "INFO".bright_blue(),
             };
 
-            writeln!(&mut output, "\n{} {} Issues ({})",
+            writeln!(
+                &mut output,
+                "\n{} {} Issues ({})",
                 "▶".bright_white(),
                 severity_color,
                 severity_findings.len()
@@ -336,7 +378,9 @@ fn generate_text_output(
                     Confidence::Low => "●○○".bright_black(),
                 };
 
-                writeln!(&mut output, "\n  {} {} {}",
+                writeln!(
+                    &mut output,
+                    "\n  {} {} {}",
                     "•".bright_white(),
                     finding.title.bright_white().bold(),
                     confidence_str
@@ -347,11 +391,21 @@ fn generate_text_output(
                 } else {
                     "[Deterministic]".bright_green()
                 };
-                writeln!(&mut output, "    Scanner: {} {}", scanner_type, finding.scanner_id)?;
+                writeln!(
+                    &mut output,
+                    "    Scanner: {} {}",
+                    scanner_type, finding.scanner_id
+                )?;
 
                 if let Some(ref provenance) = finding.provenance {
-                    if let tameshi_scanners::core::provenance::ValidationStatus::Confirmed { confirming_scanners, .. } = &provenance.validation_status {
-                        writeln!(&mut output, "    {} Cross-validated by: {}",
+                    if let tameshi_scanners::core::provenance::ValidationStatus::Confirmed {
+                        confirming_scanners,
+                        ..
+                    } = &provenance.validation_status
+                    {
+                        writeln!(
+                            &mut output,
+                            "    {} Cross-validated by: {}",
                             "✓".green(),
                             confirming_scanners.join(", ")
                         )?;
@@ -363,14 +417,20 @@ fn generate_text_output(
                 if !finding.locations.is_empty() {
                     for loc in &finding.locations[..finding.locations.len().min(3)] {
                         if let Some(ref ir_pos) = loc.ir_position {
-                            writeln!(&mut output, "    📍 Solidity: {}:{}:{}",
+                            writeln!(
+                                &mut output,
+                                "    📍 Solidity: {}:{}:{}",
                                 loc.file, loc.line, loc.column
                             )?;
-                            writeln!(&mut output, "       IR: {} @ [{}] in block {}",
+                            writeln!(
+                                &mut output,
+                                "       IR: {} @ [{}] in block {}",
                                 ir_pos.function, ir_pos.position, ir_pos.block_id
                             )?;
                         } else {
-                            writeln!(&mut output, "    📍 {}:{}:{}",
+                            writeln!(
+                                &mut output,
+                                "    📍 {}:{}:{}",
                                 loc.file, loc.line, loc.column
                             )?;
                         }
@@ -381,9 +441,21 @@ fn generate_text_output(
     }
 
     if args.detailed_report {
-        writeln!(&mut output, "\n{}", "═══════════════════════════════".bright_blue())?;
-        writeln!(&mut output, "{}", "     CORRELATION ANALYSIS".bright_blue().bold())?;
-        writeln!(&mut output, "{}", "═══════════════════════════════".bright_blue())?;
+        writeln!(
+            &mut output,
+            "\n{}",
+            "═══════════════════════════════".bright_blue()
+        )?;
+        writeln!(
+            &mut output,
+            "{}",
+            "     CORRELATION ANALYSIS".bright_blue().bold()
+        )?;
+        writeln!(
+            &mut output,
+            "{}",
+            "═══════════════════════════════".bright_blue()
+        )?;
 
         writeln!(&mut output, "\n{}", "📊 Correlation Table:".bright_cyan())?;
         writeln!(&mut output, "{}", "─".repeat(80).bright_black())?;
@@ -405,27 +477,40 @@ fn generate_text_output(
                     let avg_confidence = (det.confidence_score + llm.confidence_score) / 2.0;
                     let strategy = group.correlation_strategy.as_deref().unwrap_or("Mixed");
 
-                    writeln!(&mut output, "\n  {} Correlated Finding:",
-                        "▶".bright_white())?;
-                    writeln!(&mut output, "    {} Deterministic: {} ({})",
+                    writeln!(
+                        &mut output,
+                        "\n  {} Correlated Finding:",
+                        "▶".bright_white()
+                    )?;
+                    writeln!(
+                        &mut output,
+                        "    {} Deterministic: {} ({})",
                         "•".bright_green(),
                         det.title.bright_white(),
                         det.severity
                     )?;
-                    writeln!(&mut output, "    {} LLM: {} ({})",
+                    writeln!(
+                        &mut output,
+                        "    {} LLM: {} ({})",
                         "•".bright_cyan(),
                         llm.title.bright_white(),
                         llm.severity
                     )?;
-                    writeln!(&mut output, "    {} Confidence: {:.0}%",
+                    writeln!(
+                        &mut output,
+                        "    {} Confidence: {:.0}%",
                         "•".bright_yellow(),
                         avg_confidence * 100.0
                     )?;
-                    writeln!(&mut output, "    {} Correlation Score: {:.2}",
+                    writeln!(
+                        &mut output,
+                        "    {} Correlation Score: {:.2}",
                         "•".bright_magenta(),
                         group.average_correlation()
                     )?;
-                    writeln!(&mut output, "    {} Strategy: {}",
+                    writeln!(
+                        &mut output,
+                        "    {} Strategy: {}",
                         "•".bright_blue(),
                         strategy.bright_white()
                     )?;
@@ -473,11 +558,26 @@ fn generate_json_output(
 
     let summary = Summary {
         total_findings: findings.len(),
-        critical: findings.iter().filter(|f| f.severity == Severity::Critical).count(),
-        high: findings.iter().filter(|f| f.severity == Severity::High).count(),
-        medium: findings.iter().filter(|f| f.severity == Severity::Medium).count(),
-        low: findings.iter().filter(|f| f.severity == Severity::Low).count(),
-        informational: findings.iter().filter(|f| f.severity == Severity::Informational).count(),
+        critical: findings
+            .iter()
+            .filter(|f| f.severity == Severity::Critical)
+            .count(),
+        high: findings
+            .iter()
+            .filter(|f| f.severity == Severity::High)
+            .count(),
+        medium: findings
+            .iter()
+            .filter(|f| f.severity == Severity::Medium)
+            .count(),
+        low: findings
+            .iter()
+            .filter(|f| f.severity == Severity::Low)
+            .count(),
+        informational: findings
+            .iter()
+            .filter(|f| f.severity == Severity::Informational)
+            .count(),
         cross_validated: correlation_result.statistics.deterministic_llm_correlations,
     };
 
@@ -486,7 +586,9 @@ fn generate_json_output(
         correlated_findings: correlation_result.statistics.correlated_findings,
         correlation_groups: correlation_result.statistics.correlation_groups,
         average_group_size: correlation_result.statistics.average_group_size,
-        deterministic_llm_correlations: correlation_result.statistics.deterministic_llm_correlations,
+        deterministic_llm_correlations: correlation_result
+            .statistics
+            .deterministic_llm_correlations,
     };
 
     let report = AnalysisReport {
@@ -508,21 +610,34 @@ fn generate_markdown_output(
 
     writeln!(&mut output, "# Security Analysis Report")?;
     writeln!(&mut output, "\n**File:** `{}`", args.input.display())?;
-    writeln!(&mut output, "**Date:** {}", chrono::Local::now().format("%Y-%m-%d %H:%M:%S"))?;
+    writeln!(
+        &mut output,
+        "**Date:** {}",
+        chrono::Local::now().format("%Y-%m-%d %H:%M:%S")
+    )?;
 
     writeln!(&mut output, "\n## Summary")?;
     writeln!(&mut output, "\n| Severity | Count |")?;
     writeln!(&mut output, "|----------|-------|")?;
 
-    for severity in [Severity::Critical, Severity::High, Severity::Medium, Severity::Low, Severity::Informational] {
+    for severity in [
+        Severity::Critical,
+        Severity::High,
+        Severity::Medium,
+        Severity::Low,
+        Severity::Informational,
+    ] {
         let count = findings.iter().filter(|f| f.severity == severity).count();
         if count > 0 {
             writeln!(&mut output, "| {} | {} |", severity, count)?;
         }
     }
 
-    writeln!(&mut output, "\n**Cross-validated findings:** {}",
-        correlation_result.statistics.deterministic_llm_correlations)?;
+    writeln!(
+        &mut output,
+        "\n**Cross-validated findings:** {}",
+        correlation_result.statistics.deterministic_llm_correlations
+    )?;
 
     writeln!(&mut output, "\n## Findings")?;
 
@@ -535,9 +650,17 @@ fn generate_markdown_output(
             Severity::Informational => "🔵 **INFO**",
         };
 
-        writeln!(&mut output, "\n### {}. {} {}", i + 1, severity_badge, finding.title)?;
+        writeln!(
+            &mut output,
+            "\n### {}. {} {}",
+            i + 1,
+            severity_badge,
+            finding.title
+        )?;
 
-        writeln!(&mut output, "\n**Confidence:** {}",
+        writeln!(
+            &mut output,
+            "\n**Confidence:** {}",
             match finding.confidence {
                 Confidence::High => "High ●●●",
                 Confidence::Medium => "Medium ●●○",
@@ -545,9 +668,15 @@ fn generate_markdown_output(
             }
         )?;
 
-        writeln!(&mut output, "\n**Scanner:** {} ({})",
+        writeln!(
+            &mut output,
+            "\n**Scanner:** {} ({})",
             finding.scanner_id,
-            if finding.scanner_id.contains("llm") { "LLM-based" } else { "Deterministic" }
+            if finding.scanner_id.contains("llm") {
+                "LLM-based"
+            } else {
+                "Deterministic"
+            }
         )?;
 
         if let Some(ref swc_id) = finding.swc_id {
@@ -573,14 +702,21 @@ fn generate_markdown_output(
             if !with_ir.is_empty() {
                 writeln!(&mut output, "\n**Dual Coordinates (Solidity + IR):**")?;
                 for loc in with_ir {
-                    writeln!(&mut output, "- **Solidity:** `{}:{}:{}`",
-                        loc.file, loc.line, loc.column)?;
+                    writeln!(
+                        &mut output,
+                        "- **Solidity:** `{}:{}:{}`",
+                        loc.file, loc.line, loc.column
+                    )?;
                     if let Some(ref ir_pos) = loc.ir_position {
-                        writeln!(&mut output, "  **IR:** Function `{}` | Position `[{}]` | Block `{}` {}",
+                        writeln!(
+                            &mut output,
+                            "  **IR:** Function `{}` | Position `[{}]` | Block `{}` {}",
                             ir_pos.function,
                             ir_pos.position,
                             ir_pos.block_id,
-                            ir_pos.operation.as_ref()
+                            ir_pos
+                                .operation
+                                .as_ref()
                                 .map(|op| format!("| Operation `{}`", op))
                                 .unwrap_or_default()
                         )?;
@@ -628,15 +764,35 @@ fn generate_markdown_output(
 
                     writeln!(&mut output, "\n### 🔗 Correlated Finding\n")?;
 
-                    writeln!(&mut output, "| **Attribute** | **Deterministic Scanner** | **LLM Scanner** |")?;
-                    writeln!(&mut output, "|---------------|---------------------------|-----------------|")?;
-                    writeln!(&mut output, "| **Scanner ID** | {} | {} |", det.scanner_id, llm.scanner_id)?;
-                    writeln!(&mut output, "| **Severity** | {} | {} |", det.severity, llm.severity)?;
-                    writeln!(&mut output, "| **Confidence** | {} ({:.0}%) | {} ({:.0}%) |",
-                        det.confidence, det.confidence_score * 100.0,
-                        llm.confidence, llm.confidence_score * 100.0
+                    writeln!(
+                        &mut output,
+                        "| **Attribute** | **Deterministic Scanner** | **LLM Scanner** |"
                     )?;
-                    writeln!(&mut output, "| **Title** | {} | {} |",
+                    writeln!(
+                        &mut output,
+                        "|---------------|---------------------------|-----------------|"
+                    )?;
+                    writeln!(
+                        &mut output,
+                        "| **Scanner ID** | {} | {} |",
+                        det.scanner_id, llm.scanner_id
+                    )?;
+                    writeln!(
+                        &mut output,
+                        "| **Severity** | {} | {} |",
+                        det.severity, llm.severity
+                    )?;
+                    writeln!(
+                        &mut output,
+                        "| **Confidence** | {} ({:.0}%) | {} ({:.0}%) |",
+                        det.confidence,
+                        det.confidence_score * 100.0,
+                        llm.confidence,
+                        llm.confidence_score * 100.0
+                    )?;
+                    writeln!(
+                        &mut output,
+                        "| **Title** | {} | {} |",
                         det.title.replace('|', "\\|"),
                         llm.title.replace('|', "\\|")
                     )?;
@@ -654,8 +810,16 @@ fn generate_markdown_output(
                     }
 
                     writeln!(&mut output, "\n**📊 Correlation Metrics:**")?;
-                    writeln!(&mut output, "- **Overall Confidence:** {:.0}%", avg_confidence * 100.0)?;
-                    writeln!(&mut output, "- **Correlation Score:** {:.2}", group.average_correlation())?;
+                    writeln!(
+                        &mut output,
+                        "- **Overall Confidence:** {:.0}%",
+                        avg_confidence * 100.0
+                    )?;
+                    writeln!(
+                        &mut output,
+                        "- **Correlation Score:** {:.2}",
+                        group.average_correlation()
+                    )?;
                     writeln!(&mut output, "- **Correlation Strategy:** {}", strategy)?;
                     writeln!(&mut output, "\n---")?;
                 }
@@ -663,21 +827,43 @@ fn generate_markdown_output(
         }
 
         if !has_correlations {
-            writeln!(&mut output, "\n*No cross-validated correlations found between deterministic and LLM scanners.*")?;
+            writeln!(
+                &mut output,
+                "\n*No cross-validated correlations found between deterministic and LLM scanners.*"
+            )?;
         }
 
         writeln!(&mut output)?;
         writeln!(&mut output, "### Detailed Statistics")?;
         writeln!(&mut output)?;
-        writeln!(&mut output, "- **Total findings:** {}", correlation_result.statistics.total_findings)?;
-        writeln!(&mut output, "- **Correlated findings:** {} ({:.1}%)",
+        writeln!(
+            &mut output,
+            "- **Total findings:** {}",
+            correlation_result.statistics.total_findings
+        )?;
+        writeln!(
+            &mut output,
+            "- **Correlated findings:** {} ({:.1}%)",
             correlation_result.statistics.correlated_findings,
-            (correlation_result.statistics.correlated_findings as f64 /
-             correlation_result.statistics.total_findings as f64) * 100.0)?;
-        writeln!(&mut output, "- **Correlation groups:** {}", correlation_result.statistics.correlation_groups)?;
-        writeln!(&mut output, "- **Average group size:** {:.1}", correlation_result.statistics.average_group_size)?;
-        writeln!(&mut output, "- **Cross-validated groups:** {}",
-            correlation_result.statistics.deterministic_llm_correlations)?;
+            (correlation_result.statistics.correlated_findings as f64
+                / correlation_result.statistics.total_findings as f64)
+                * 100.0
+        )?;
+        writeln!(
+            &mut output,
+            "- **Correlation groups:** {}",
+            correlation_result.statistics.correlation_groups
+        )?;
+        writeln!(
+            &mut output,
+            "- **Average group size:** {:.1}",
+            correlation_result.statistics.average_group_size
+        )?;
+        writeln!(
+            &mut output,
+            "- **Cross-validated groups:** {}",
+            correlation_result.statistics.deterministic_llm_correlations
+        )?;
     }
 
     Ok(output)

@@ -11,8 +11,8 @@
 //! balances[msg.sender] = 0;  // State update after loop
 //! ```
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use crate::representations::source::SourceRepresentation;
 use anyhow::Result;
 
@@ -101,7 +101,8 @@ impl Scanner for SourceLoopReentrancyScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
@@ -153,7 +154,9 @@ mod tests {
         let findings = scanner.scan(&context).unwrap();
 
         assert!(findings.len() >= 1, "Expected at least 1 finding");
-        assert!(findings.iter().any(|f| f.scanner_id == "source-loop-reentrancy"));
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "source-loop-reentrancy"));
     }
 
     #[test]
@@ -189,6 +192,10 @@ mod tests {
         let scanner = SourceLoopReentrancyScanner::new();
         let findings = scanner.scan(&context).unwrap();
 
-        assert_eq!(findings.len(), 0, "Should not detect vulnerability in safe pattern");
+        assert_eq!(
+            findings.len(),
+            0,
+            "Should not detect vulnerability in safe pattern"
+        );
     }
 }

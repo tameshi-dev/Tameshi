@@ -98,7 +98,6 @@ impl Severity {
     }
 }
 
-
 struct ValueHoldingRule;
 impl SeverityRule for ValueHoldingRule {
     fn evaluate(
@@ -151,7 +150,8 @@ impl SeverityRule for ReentrancyWithValueRule {
         _context: &SeverityContext,
     ) -> Option<SeverityAdjustment> {
         if finding.scanner_id == "reentrancy-simple"
-            && (finding.description.contains("withdraw") || finding.description.contains("transfer"))
+            && (finding.description.contains("withdraw")
+                || finding.description.contains("transfer"))
         {
             return Some(SeverityAdjustment::SetTo(Severity::Critical));
         }

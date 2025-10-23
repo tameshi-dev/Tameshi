@@ -1,17 +1,17 @@
 //! Access control Scanner using IR analysis
 
 use crate::core::{Confidence, Finding, Severity};
+use anyhow::Result;
+use std::collections::HashSet;
 use thalir_core::{
     analysis::{
         cursor::ScannerCursor,
-        pass::{Pass, PassManager, AnalysisID},
+        pass::{AnalysisID, Pass, PassManager},
     },
     contract::Contract,
-    instructions::Instruction,
     function::Visibility,
+    instructions::Instruction,
 };
-use anyhow::Result;
-use std::collections::HashSet;
 
 pub struct IRAccessControlScanner {
     findings: Vec<Finding>,
@@ -30,11 +30,11 @@ impl IRAccessControlScanner {
         self.source_code = Some(source);
         self
     }
-    
+
     pub fn get_findings(&self) -> Vec<Finding> {
         self.findings.clone()
     }
-    
+
     pub fn analyze(&mut self, contract: &Contract) -> Result<Vec<Finding>> {
         self.findings.clear();
 
@@ -53,7 +53,7 @@ impl IRAccessControlScanner {
             if !self.is_public_state_changing_function(function) {
                 continue;
             }
-            
+
             let mut cursor = ScannerCursor::at_entry(function);
             let mut has_access_control = false;
             let mut has_state_modifications = false;
@@ -75,7 +75,9 @@ impl IRAccessControlScanner {
                         }
 
                         Instruction::Eq { left, right, .. } => {
-                            if self.is_msg_sender_value(left, function) || self.is_msg_sender_value(right, function) {
+                            if self.is_msg_sender_value(left, function)
+                                || self.is_msg_sender_value(right, function)
+                            {
                                 has_msg_sender_comparison = true;
                             }
                         }
@@ -85,7 +87,7 @@ impl IRAccessControlScanner {
                                 has_role_check = true;
                             }
                         }
-                        
+
                         Instruction::StorageStore { .. } => {
                             has_state_modifications = true;
                             state_mod_instructions.push((block_id, idx, instruction));
@@ -108,17 +110,20 @@ impl IRAccessControlScanner {
                                 state_mod_instructions.push((block_id, idx, instruction));
                             }
                         }
-                        
-                        Instruction::Call { target: thalir_core::instructions::CallTarget::External(_), .. } => {
+
+                        Instruction::Call {
+                            target: thalir_core::instructions::CallTarget::External(_),
+                            ..
+                        } => {
                             has_state_modifications = true;
                             state_mod_instructions.push((block_id, idx, instruction));
                         }
-                        
+
                         Instruction::Selfdestruct { .. } => {
                             has_state_modifications = true;
                             state_mod_instructions.push((block_id, idx, instruction));
                         }
-                        
+
                         _ => {}
                     }
                 }
@@ -130,23 +135,27 @@ impl IRAccessControlScanner {
 
             if has_state_modifications && !has_access_control {
                 let has_critical_ops = state_mod_instructions.iter().any(|(_, _, instr)| {
-                    matches!(instr,
-                        Instruction::StorageStore { .. } |
-                        Instruction::Call { target: thalir_core::instructions::CallTarget::External(_), .. } |
-                        Instruction::Selfdestruct { .. }
+                    matches!(
+                        instr,
+                        Instruction::StorageStore { .. }
+                            | Instruction::Call {
+                                target: thalir_core::instructions::CallTarget::External(_),
+                                ..
+                            }
+                            | Instruction::Selfdestruct { .. }
                     )
                 });
 
                 if !has_critical_ops {
                     let func_lower = func_name.to_lowercase();
 
-                    let is_permission_function = func_lower.contains("admin") ||
-                                                 func_lower.contains("owner") ||
-                                                 func_lower.contains("role") ||
-                                                 func_lower.contains("grant") ||
-                                                 func_lower.contains("revoke") ||
-                                                 func_lower.contains("pause") ||
-                                                 func_lower.contains("governance");
+                    let is_permission_function = func_lower.contains("admin")
+                        || func_lower.contains("owner")
+                        || func_lower.contains("role")
+                        || func_lower.contains("grant")
+                        || func_lower.contains("revoke")
+                        || func_lower.contains("pause")
+                        || func_lower.contains("governance");
 
                     if is_permission_function {
                     } else {
@@ -157,7 +166,7 @@ impl IRAccessControlScanner {
                                                 func_lower.contains("unstake") ||
                                                 func_lower.contains("test") ||  // Test functions
                                                 func_lower.contains("simple") ||  // Simple example functions
-                                                (state_mod_instructions.len() == 1 && !func_lower.contains("set"));  // Single operation, not a setter
+                                                (state_mod_instructions.len() == 1 && !func_lower.contains("set")); // Single operation, not a setter
 
                         if is_trivial_self_op {
                             continue;
@@ -166,15 +175,14 @@ impl IRAccessControlScanner {
                 }
 
                 let severity = self.determine_severity(func_name, &state_mod_instructions);
-                let confidence = self.determine_confidence(func_name, function, &state_mod_instructions);
+                let confidence =
+                    self.determine_confidence(func_name, function, &state_mod_instructions);
 
-                let locations = state_mod_instructions.iter()
+                let locations = state_mod_instructions
+                    .iter()
                     .map(|(block_id, idx, _)| {
                         super::provenance::get_instruction_location(
-                            contract,
-                            func_name,
-                            *block_id,
-                            *idx,
+                            contract, func_name, *block_id, *idx,
                         )
                     })
                     .collect();
@@ -193,91 +201,146 @@ impl IRAccessControlScanner {
                 .with_contract(&contract.name)
                 .with_function(func_name));
             }
-            
+
             if has_access_control && has_state_modifications {
                 self.check_weak_access_control(contract, func_name, function);
             }
         }
-        
+
         Ok(self.findings.clone())
     }
-    
-    fn is_public_state_changing_function(&self, function: &thalir_core::function::Function) -> bool {
+
+    fn is_public_state_changing_function(
+        &self,
+        function: &thalir_core::function::Function,
+    ) -> bool {
         match function.visibility {
             Visibility::Public | Visibility::External => true,
             Visibility::Internal | Visibility::Private => false,
         }
     }
-    
-    fn is_access_control_check(&self, condition: &thalir_core::values::Value, function: &thalir_core::function::Function, message: &str) -> bool {
-        
+
+    fn is_access_control_check(
+        &self,
+        condition: &thalir_core::values::Value,
+        function: &thalir_core::function::Function,
+        message: &str,
+    ) -> bool {
         let message_lower = message.to_lowercase();
         let access_control_keywords = [
-            "owner", "admin", "authorized", "permission", "access", "role", "only",
-            "forbidden", "unauthorized", "denied", "caller", "sender"
+            "owner",
+            "admin",
+            "authorized",
+            "permission",
+            "access",
+            "role",
+            "only",
+            "forbidden",
+            "unauthorized",
+            "denied",
+            "caller",
+            "sender",
         ];
-        
-        let has_access_keywords = access_control_keywords.iter()
+
+        let has_access_keywords = access_control_keywords
+            .iter()
             .any(|keyword| message_lower.contains(keyword));
-        
+
         if has_access_keywords {
             return true;
         }
-        
+
         if self.involves_msg_sender_check(condition, function) {
             return true;
         }
-        
+
         if self.involves_role_check(condition, function) {
             return true;
         }
-        
+
         false
     }
-    
-    fn involves_msg_sender_check(&self, condition: &thalir_core::values::Value, function: &thalir_core::function::Function) -> bool {
+
+    fn involves_msg_sender_check(
+        &self,
+        condition: &thalir_core::values::Value,
+        function: &thalir_core::function::Function,
+    ) -> bool {
         for (_block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
                 match instruction {
-                    Instruction::Eq { result, left, right } => {
+                    Instruction::Eq {
+                        result,
+                        left,
+                        right,
+                    } => {
                         if std::ptr::eq(result, condition)
-                            && (self.is_msg_sender_value(left, function) ||
-                               self.is_msg_sender_value(right, function)) {
+                            && (self.is_msg_sender_value(left, function)
+                                || self.is_msg_sender_value(right, function))
+                        {
                             return true;
                         }
                     }
 
-                    Instruction::Lt { result, left, right } |
-                    Instruction::Gt { result, left, right } |
-                    Instruction::Le { result, left, right } |
-                    Instruction::Ge { result, left, right } |
-                    Instruction::Ne { result, left, right } => {
+                    Instruction::Lt {
+                        result,
+                        left,
+                        right,
+                    }
+                    | Instruction::Gt {
+                        result,
+                        left,
+                        right,
+                    }
+                    | Instruction::Le {
+                        result,
+                        left,
+                        right,
+                    }
+                    | Instruction::Ge {
+                        result,
+                        left,
+                        right,
+                    }
+                    | Instruction::Ne {
+                        result,
+                        left,
+                        right,
+                    } => {
                         if std::ptr::eq(result, condition)
-                            && (self.is_msg_sender_value(left, function) ||
-                               self.is_msg_sender_value(right, function)) {
+                            && (self.is_msg_sender_value(left, function)
+                                || self.is_msg_sender_value(right, function))
+                        {
                             return true;
                         }
                     }
-                    
+
                     _ => {}
                 }
             }
         }
-        
+
         false
     }
-    
-    fn is_msg_sender_value(&self, value: &thalir_core::values::Value, function: &thalir_core::function::Function) -> bool {
 
+    fn is_msg_sender_value(
+        &self,
+        value: &thalir_core::values::Value,
+        function: &thalir_core::function::Function,
+    ) -> bool {
         let mut msg_sender_values: HashSet<*const thalir_core::values::Value> = HashSet::new();
         let mut worklist: Vec<*const thalir_core::values::Value> = Vec::new();
 
         for (_block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
-                if let Instruction::GetContext { result, var: thalir_core::instructions::ContextVariable::MsgSender } = instruction {
-                        let ptr = result as *const thalir_core::values::Value;
-                        msg_sender_values.insert(ptr);
-                        worklist.push(ptr);
+                if let Instruction::GetContext {
+                    result,
+                    var: thalir_core::instructions::ContextVariable::MsgSender,
+                } = instruction
+                {
+                    let ptr = result as *const thalir_core::values::Value;
+                    msg_sender_values.insert(ptr);
+                    worklist.push(ptr);
                 }
             }
         }
@@ -286,10 +349,18 @@ impl IRAccessControlScanner {
             for (_block_id, block) in &function.body.blocks {
                 for instruction in &block.instructions {
                     match instruction {
-                        Instruction::Cast { result, value: src, .. } |
-                        Instruction::ZeroExtend { result, value: src, .. } |
-                        Instruction::SignExtend { result, value: src, .. } |
-                        Instruction::Truncate { result, value: src, .. } => {
+                        Instruction::Cast {
+                            result, value: src, ..
+                        }
+                        | Instruction::ZeroExtend {
+                            result, value: src, ..
+                        }
+                        | Instruction::SignExtend {
+                            result, value: src, ..
+                        }
+                        | Instruction::Truncate {
+                            result, value: src, ..
+                        } => {
                             let src_ptr = src as *const thalir_core::values::Value;
                             if src_ptr == current_ptr {
                                 let result_ptr = result as *const thalir_core::values::Value;
@@ -307,8 +378,12 @@ impl IRAccessControlScanner {
         let value_ptr = value as *const thalir_core::values::Value;
         msg_sender_values.contains(&value_ptr)
     }
-    
-    fn involves_role_check(&self, condition: &thalir_core::values::Value, function: &thalir_core::function::Function) -> bool {
+
+    fn involves_role_check(
+        &self,
+        condition: &thalir_core::values::Value,
+        function: &thalir_core::function::Function,
+    ) -> bool {
         for (_block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
                 if let Instruction::MappingLoad { result, key, .. } = instruction {
@@ -320,42 +395,68 @@ impl IRAccessControlScanner {
                 }
             }
         }
-        
+
         false
     }
-    
-    fn value_contributes_to_condition(&self, value: &thalir_core::values::Value, condition: &thalir_core::values::Value, function: &thalir_core::function::Function) -> bool {
+
+    fn value_contributes_to_condition(
+        &self,
+        value: &thalir_core::values::Value,
+        condition: &thalir_core::values::Value,
+        function: &thalir_core::function::Function,
+    ) -> bool {
         std::ptr::eq(value, condition) || self.involves_msg_sender_check(condition, function)
     }
-    
-    fn determine_severity(&self, func_name: &str, state_modifications: &[(thalir_core::block::BlockId, usize, &Instruction)]) -> Severity {
+
+    fn determine_severity(
+        &self,
+        func_name: &str,
+        state_modifications: &[(thalir_core::block::BlockId, usize, &Instruction)],
+    ) -> Severity {
         let func_lower = func_name.to_lowercase();
 
-        let is_self_operation = func_lower.contains("withdraw") ||
-                               func_lower.contains("deposit") ||
-                               func_lower.contains("claim") ||
-                               func_lower.contains("stake") ||
-                               func_lower.contains("unstake");
+        let is_self_operation = func_lower.contains("withdraw")
+            || func_lower.contains("deposit")
+            || func_lower.contains("claim")
+            || func_lower.contains("stake")
+            || func_lower.contains("unstake");
 
         if is_self_operation {
             return Severity::Low;
         }
 
         let has_critical_ops = state_modifications.iter().any(|(_, _, instr)| {
-            matches!(instr,
-                Instruction::Selfdestruct { .. } |
-                Instruction::Call { target: thalir_core::instructions::CallTarget::External(_), .. }
+            matches!(
+                instr,
+                Instruction::Selfdestruct { .. }
+                    | Instruction::Call {
+                        target: thalir_core::instructions::CallTarget::External(_),
+                        ..
+                    }
             )
         });
 
         let critical_function_patterns = [
-            "setowner", "transferowner", "renounceowner",
-            "mint", "burn", "destroy", "upgrade",
-            "setadmin", "addadmin", "removeadmin", "admin", "governance",
-            "emergency", "pause", "unpause", "freeze"
+            "setowner",
+            "transferowner",
+            "renounceowner",
+            "mint",
+            "burn",
+            "destroy",
+            "upgrade",
+            "setadmin",
+            "addadmin",
+            "removeadmin",
+            "admin",
+            "governance",
+            "emergency",
+            "pause",
+            "unpause",
+            "freeze",
         ];
 
-        let is_critical_function = critical_function_patterns.iter()
+        let is_critical_function = critical_function_patterns
+            .iter()
             .any(|pattern| func_lower.contains(pattern));
 
         let has_privileged_storage = state_modifications
@@ -370,21 +471,33 @@ impl IRAccessControlScanner {
             Severity::Low
         }
     }
-    
-    fn determine_confidence(&self, func_name: &str, function: &thalir_core::function::Function, state_modifications: &[(thalir_core::block::BlockId, usize, &Instruction)]) -> Confidence {
-        let obvious_public_function = matches!(function.visibility, Visibility::Public | Visibility::External);
+
+    fn determine_confidence(
+        &self,
+        func_name: &str,
+        function: &thalir_core::function::Function,
+        state_modifications: &[(thalir_core::block::BlockId, usize, &Instruction)],
+    ) -> Confidence {
+        let obvious_public_function = matches!(
+            function.visibility,
+            Visibility::Public | Visibility::External
+        );
         let has_multiple_state_mods = state_modifications.len() > 1;
 
         let func_lower = func_name.to_lowercase();
         let is_constructor_like = func_lower.contains("constructor") || func_lower.contains("init");
 
-        let is_self_operation = func_lower.contains("withdraw") ||
-                               func_lower.contains("deposit") ||
-                               func_lower.contains("claim") ||
-                               func_lower.contains("stake") ||
-                               func_lower.contains("unstake");
+        let is_self_operation = func_lower.contains("withdraw")
+            || func_lower.contains("deposit")
+            || func_lower.contains("claim")
+            || func_lower.contains("stake")
+            || func_lower.contains("unstake");
 
-        if obvious_public_function && has_multiple_state_mods && !is_constructor_like && !is_self_operation {
+        if obvious_public_function
+            && has_multiple_state_mods
+            && !is_constructor_like
+            && !is_self_operation
+        {
             Confidence::High
         } else if obvious_public_function && !is_constructor_like && !is_self_operation {
             Confidence::Medium
@@ -392,19 +505,25 @@ impl IRAccessControlScanner {
             Confidence::Low
         }
     }
-    
-    fn check_weak_access_control(&mut self, contract: &Contract, func_name: &str, function: &thalir_core::function::Function) {
+
+    fn check_weak_access_control(
+        &mut self,
+        contract: &Contract,
+        func_name: &str,
+        function: &thalir_core::function::Function,
+    ) {
         for (block_id, block) in &function.body.blocks {
             for (idx, instruction) in block.instructions.iter().enumerate() {
-                if let Instruction::GetContext { result: _, var: thalir_core::instructions::ContextVariable::TxOrigin } = instruction {
-                        let location = super::provenance::get_instruction_location(
-                            contract,
-                            func_name,
-                            *block_id,
-                            idx,
-                        );
+                if let Instruction::GetContext {
+                    result: _,
+                    var: thalir_core::instructions::ContextVariable::TxOrigin,
+                } = instruction
+                {
+                    let location = super::provenance::get_instruction_location(
+                        contract, func_name, *block_id, idx,
+                    );
 
-                        self.findings.push(Finding::new(
+                    self.findings.push(Finding::new(
                             "weak-access-control-tx-origin".to_string(),
                             Severity::Medium,
                             Confidence::High,
@@ -427,20 +546,24 @@ impl Pass for IRAccessControlScanner {
     fn name(&self) -> &'static str {
         "ir-access-control"
     }
-    
-    fn run_on_contract(&mut self, contract: &mut Contract, _manager: &mut PassManager) -> Result<()> {
+
+    fn run_on_contract(
+        &mut self,
+        contract: &mut Contract,
+        _manager: &mut PassManager,
+    ) -> Result<()> {
         self.analyze(contract)?;
         Ok(())
     }
-    
+
     fn required_analyses(&self) -> Vec<AnalysisID> {
         vec![AnalysisID::ControlFlow, AnalysisID::DefUse]
     }
-    
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

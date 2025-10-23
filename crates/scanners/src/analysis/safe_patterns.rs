@@ -7,13 +7,10 @@
 //! - SafeERC20 library usage
 //! - Initialization guards (initialized, initializer)
 
+use std::collections::{HashMap, HashSet};
 use thalir_core::{
-    contract::Contract,
-    function::Function,
-    instructions::Instruction,
-    block::BlockId,
+    block::BlockId, contract::Contract, function::Function, instructions::Instruction,
 };
-use std::collections::{HashSet, HashMap};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SafePattern {
@@ -39,9 +36,9 @@ impl SafePatternAnalysis {
     }
 
     pub fn has_reentrancy_protection(&self) -> bool {
-        self.has_pattern(SafePattern::ReentrancyGuard) ||
-        self.has_pattern(SafePattern::ChecksEffectsInteractions) ||
-        self.has_pattern(SafePattern::MutexLock)
+        self.has_pattern(SafePattern::ReentrancyGuard)
+            || self.has_pattern(SafePattern::ChecksEffectsInteractions)
+            || self.has_pattern(SafePattern::MutexLock)
     }
 
     pub fn has_access_control(&self) -> bool {
@@ -85,7 +82,11 @@ impl SafePatternRecognizer {
         }
     }
 
-    pub fn analyze_function(&self, function: &Function, contract: &Contract) -> SafePatternAnalysis {
+    pub fn analyze_function(
+        &self,
+        function: &Function,
+        contract: &Contract,
+    ) -> SafePatternAnalysis {
         let mut patterns = HashSet::new();
         let mut evidence = HashMap::new();
 
@@ -96,7 +97,10 @@ impl SafePatternRecognizer {
 
         if let Some(pattern) = self.check_cei_pattern(function) {
             patterns.insert(pattern);
-            evidence.insert(pattern, "Function follows CEI pattern (no state changes after external calls)".to_string());
+            evidence.insert(
+                pattern,
+                "Function follows CEI pattern (no state changes after external calls)".to_string(),
+            );
         }
 
         if let Some(pattern) = self.check_ownable_pattern(function, contract) {
@@ -132,9 +136,10 @@ impl SafePatternRecognizer {
         for modifier in &function.modifiers {
             let modifier_str = format!("{:?}", modifier).to_lowercase();
             for safe_mod in &self.safe_modifiers {
-                if modifier_str.contains(&safe_mod.to_lowercase()) &&
-                   (safe_mod.to_lowercase().contains("reentrant") ||
-                    safe_mod.to_lowercase().contains("locked")) {
+                if modifier_str.contains(&safe_mod.to_lowercase())
+                    && (safe_mod.to_lowercase().contains("reentrant")
+                        || safe_mod.to_lowercase().contains("locked"))
+                {
                     return Some(SafePattern::ReentrancyGuard);
                 }
             }
@@ -149,7 +154,10 @@ impl SafePatternRecognizer {
                     let key_str = format!("{:?}", key).to_lowercase();
                     let value_str = format!("{:?}", value);
 
-                    if key_str.contains("locked") || key_str.contains("_status") || key_str.contains("_guard") {
+                    if key_str.contains("locked")
+                        || key_str.contains("_status")
+                        || key_str.contains("_guard")
+                    {
                         if value_str.contains("true") || value_str.contains("1") {
                             has_lock_set = true;
                         }
@@ -191,17 +199,22 @@ impl SafePatternRecognizer {
         None
     }
 
-    fn check_ownable_pattern(&self, function: &Function, _contract: &Contract) -> Option<SafePattern> {
+    fn check_ownable_pattern(
+        &self,
+        function: &Function,
+        _contract: &Contract,
+    ) -> Option<SafePattern> {
         for (_block_id, block) in &function.body.blocks {
             for instruction in &block.instructions {
                 if let Instruction::Require { condition, message } = instruction {
                     let message_lower = message.to_lowercase();
                     let condition_str = format!("{:?}", condition).to_lowercase();
 
-                    if message_lower.contains("ownable") ||
-                       message_lower.contains("onlyowner") ||
-                       message_lower.contains("only owner") ||
-                       condition_str.contains("owner") {
+                    if message_lower.contains("ownable")
+                        || message_lower.contains("onlyowner")
+                        || message_lower.contains("only owner")
+                        || condition_str.contains("owner")
+                    {
                         return Some(SafePattern::OwnablePattern);
                     }
                 }
@@ -229,10 +242,11 @@ impl SafePatternRecognizer {
             for instruction in &block.instructions {
                 if let Instruction::Call { target, .. } = instruction {
                     let target_str = format!("{:?}", target);
-                    if target_str.contains("SafeERC20") ||
-                       target_str.contains("safeTransfer") ||
-                       target_str.contains("safeTransferFrom") ||
-                       target_str.contains("safeApprove") {
+                    if target_str.contains("SafeERC20")
+                        || target_str.contains("safeTransfer")
+                        || target_str.contains("safeTransferFrom")
+                        || target_str.contains("safeApprove")
+                    {
                         return Some(SafePattern::SafeERC20);
                     }
                 }
@@ -247,9 +261,10 @@ impl SafePatternRecognizer {
             for instruction in &block.instructions {
                 if let Instruction::Require { message, .. } = instruction {
                     let message_lower = message.to_lowercase();
-                    if message_lower.contains("initialized") ||
-                       message_lower.contains("initializing") ||
-                       message_lower.contains("initializer") {
+                    if message_lower.contains("initialized")
+                        || message_lower.contains("initializing")
+                        || message_lower.contains("initializer")
+                    {
                         return Some(SafePattern::InitializationGuard);
                     }
                 }
@@ -305,14 +320,19 @@ impl SafePatternRecognizer {
     }
 
     fn is_state_modification(&self, inst: &Instruction) -> bool {
-        matches!(inst,
-            Instruction::StorageStore { .. } |
-            Instruction::MappingStore { .. } |
-            Instruction::ArrayStore { .. }
+        matches!(
+            inst,
+            Instruction::StorageStore { .. }
+                | Instruction::MappingStore { .. }
+                | Instruction::ArrayStore { .. }
         )
     }
 
-    fn checks_msg_sender_against_storage(&self, _condition: &thalir_core::values::Value, _function: &Function) -> bool {
+    fn checks_msg_sender_against_storage(
+        &self,
+        _condition: &thalir_core::values::Value,
+        _function: &Function,
+    ) -> bool {
         false
     }
 
@@ -325,7 +345,7 @@ impl SafePatternRecognizer {
 
         for pattern in patterns {
             confidence += match pattern {
-                SafePattern::ReentrancyGuard => 0.9,  // Very high confidence
+                SafePattern::ReentrancyGuard => 0.9, // Very high confidence
                 SafePattern::ChecksEffectsInteractions => 0.85,
                 SafePattern::OwnablePattern => 0.8,
                 SafePattern::SafeERC20 => 0.75,

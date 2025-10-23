@@ -359,7 +359,11 @@ impl FindingProvenance {
         match source {
             ProvenanceSource::Deterministic { scanner_id, .. } => scanner_id.clone(),
             ProvenanceSource::LLM { scanner_id, .. } => scanner_id.clone(),
-            ProvenanceSource::Hybrid { deterministic_scanner, llm_scanner, .. } => {
+            ProvenanceSource::Hybrid {
+                deterministic_scanner,
+                llm_scanner,
+                ..
+            } => {
                 format!("{}/{}", deterministic_scanner, llm_scanner)
             }
         }

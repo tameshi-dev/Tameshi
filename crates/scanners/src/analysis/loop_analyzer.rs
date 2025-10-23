@@ -12,12 +12,12 @@
 //! balances[msg.sender] = 0; // state update after loop - vulnerable!
 //! ```
 
+use std::collections::HashSet;
 use thalir_core::{
+    block::{BlockId, Terminator},
     function::Function,
     instructions::Instruction,
-    block::{BlockId, Terminator},
 };
-use std::collections::HashSet;
 
 #[derive(Debug, Clone)]
 pub struct Loop {
@@ -40,9 +40,7 @@ pub struct LoopAnalyzer {
 
 impl LoopAnalyzer {
     pub fn new() -> Self {
-        Self {
-            loops: Vec::new(),
-        }
+        Self { loops: Vec::new() }
     }
 
     pub fn analyze_function(&mut self, function: &Function) -> Vec<Loop> {
@@ -69,7 +67,11 @@ impl LoopAnalyzer {
 
         for (block_id, block) in &function.body.blocks {
             match &block.terminator {
-                Terminator::Branch { then_block, else_block, .. } => {
+                Terminator::Branch {
+                    then_block,
+                    else_block,
+                    ..
+                } => {
                     if then_block <= block_id {
                         back_edges.push((*block_id, *then_block));
                     }
@@ -89,7 +91,12 @@ impl LoopAnalyzer {
         back_edges
     }
 
-    fn find_loop_body(&self, function: &Function, header: BlockId, tail: BlockId) -> HashSet<BlockId> {
+    fn find_loop_body(
+        &self,
+        function: &Function,
+        header: BlockId,
+        tail: BlockId,
+    ) -> HashSet<BlockId> {
         let mut body = HashSet::new();
         body.insert(header);
 
@@ -116,14 +123,19 @@ impl LoopAnalyzer {
         body
     }
 
-    fn is_predecessor(&self, pred_id: BlockId, target: BlockId, pred_block: &thalir_core::block::BasicBlock) -> bool {
+    fn is_predecessor(
+        &self,
+        pred_id: BlockId,
+        target: BlockId,
+        pred_block: &thalir_core::block::BasicBlock,
+    ) -> bool {
         match &pred_block.terminator {
-            Terminator::Branch { then_block, else_block, .. } => {
-                then_block == &target || else_block == &target
-            }
-            Terminator::Jump(jump_target, _) => {
-                jump_target == &target
-            }
+            Terminator::Branch {
+                then_block,
+                else_block,
+                ..
+            } => then_block == &target || else_block == &target,
+            Terminator::Jump(jump_target, _) => jump_target == &target,
             _ => false,
         }
     }
@@ -134,7 +146,11 @@ impl LoopAnalyzer {
         for block_id in body {
             if let Some(block) = function.body.blocks.get(block_id) {
                 match &block.terminator {
-                    Terminator::Branch { then_block, else_block, .. } => {
+                    Terminator::Branch {
+                        then_block,
+                        else_block,
+                        ..
+                    } => {
                         if !body.contains(then_block) {
                             exits.insert(*then_block);
                         }
@@ -197,7 +213,11 @@ impl LoopAnalyzer {
 
                     if checked_blocks.len() < 10 {
                         match &block.terminator {
-                            Terminator::Branch { then_block, else_block, .. } => {
+                            Terminator::Branch {
+                                then_block,
+                                else_block,
+                                ..
+                            } => {
                                 to_check.push(*then_block);
                                 to_check.push(*else_block);
                             }
@@ -234,10 +254,11 @@ impl LoopAnalyzer {
     }
 
     fn is_state_modification(inst: &Instruction) -> bool {
-        matches!(inst,
-            Instruction::StorageStore { .. } |
-            Instruction::MappingStore { .. } |
-            Instruction::ArrayStore { .. }
+        matches!(
+            inst,
+            Instruction::StorageStore { .. }
+                | Instruction::MappingStore { .. }
+                | Instruction::ArrayStore { .. }
         )
     }
 
@@ -270,5 +291,4 @@ mod tests {
         let analyzer = LoopAnalyzer::new();
         assert_eq!(analyzer.get_loops().len(), 0);
     }
-
 }

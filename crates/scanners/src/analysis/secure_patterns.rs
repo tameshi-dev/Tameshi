@@ -44,21 +44,19 @@ impl SecurePatternRecognizer {
         };
 
         match finding.scanner_id.as_str() {
-            id if id.contains("reentrancy") => {
-                self.check_reentrancy_protection(finding, source)
-            },
+            id if id.contains("reentrancy") => self.check_reentrancy_protection(finding, source),
             id if id.contains("unchecked") && id.contains("return") => {
                 self.check_safe_erc20_usage(finding, source)
-            },
-            id if id.contains("access") => {
-                self.check_access_control(finding, source)
-            },
+            }
+            id if id.contains("access") => self.check_access_control(finding, source),
             _ => false,
         }
     }
 
     fn check_reentrancy_protection(&self, finding: &Finding, source: &str) -> bool {
-        let function_name = finding.metadata.as_ref()
+        let function_name = finding
+            .metadata
+            .as_ref()
             .and_then(|m| m.affected_functions.first())
             .map(|s| s.as_str())
             .unwrap_or("");
@@ -84,9 +82,9 @@ impl SecurePatternRecognizer {
     }
 
     fn has_checks_effects_interactions(&self, function_text: &str) -> bool {
-
         let call_patterns = ["call{", ".call(", ".transfer(", ".send("];
-        let first_call_pos = call_patterns.iter()
+        let first_call_pos = call_patterns
+            .iter()
             .filter_map(|pattern| function_text.find(pattern))
             .min();
 
@@ -96,23 +94,24 @@ impl SecurePatternRecognizer {
             for line in before_call.lines() {
                 let trimmed = line.trim();
 
-                if trimmed.starts_with("uint ") ||
-                   trimmed.starts_with("address ") ||
-                   trimmed.starts_with("bool ") ||
-                   trimmed.starts_with("bytes") ||
-                   trimmed.starts_with("string ") ||
-                   trimmed.starts_with("int ") ||
-                   trimmed.starts_with("mapping") ||
-                   trimmed.starts_with("//") ||
-                   trimmed.is_empty() {
+                if trimmed.starts_with("uint ")
+                    || trimmed.starts_with("address ")
+                    || trimmed.starts_with("bool ")
+                    || trimmed.starts_with("bytes")
+                    || trimmed.starts_with("string ")
+                    || trimmed.starts_with("int ")
+                    || trimmed.starts_with("mapping")
+                    || trimmed.starts_with("//")
+                    || trimmed.is_empty()
+                {
                     continue;
                 }
 
-                if trimmed.contains('=') &&
-                   !trimmed.contains("==") &&
-                   !trimmed.contains("!=") &&
-                   !trimmed.contains("=>") {
-
+                if trimmed.contains('=')
+                    && !trimmed.contains("==")
+                    && !trimmed.contains("!=")
+                    && !trimmed.contains("=>")
+                {
                     let parts: Vec<&str> = trimmed.split('=').collect();
                     if !parts.is_empty() {
                         let left = parts[0].trim();
@@ -120,7 +119,9 @@ impl SecurePatternRecognizer {
                         if (left.contains('[') && left.contains(']')) ||  // mapping/array
                            (left.contains('.') && !left.starts_with("msg.") &&
                             !left.starts_with("tx.") && !left.starts_with("block.")) || // member
-                           (!left.contains(' ') && !left.contains('(')) {  // direct state var
+                           (!left.contains(' ') && !left.contains('('))
+                        {
+                            // direct state var
                             return true;
                         }
                     }
@@ -132,9 +133,7 @@ impl SecurePatternRecognizer {
     }
 
     fn check_safe_erc20_usage(&self, finding: &Finding, source: &str) -> bool {
-        let line = finding.locations.first()
-            .map(|loc| loc.line)
-            .unwrap_or(0);
+        let line = finding.locations.first().map(|loc| loc.line).unwrap_or(0);
 
         if line == 0 {
             return false;
@@ -153,8 +152,10 @@ impl SecurePatternRecognizer {
             }
         }
 
-        if line_content.contains(".transfer(") && !line_content.contains(".send(")
-            && (line_content.contains("payable") || line_content.contains("{value:")) {
+        if line_content.contains(".transfer(")
+            && !line_content.contains(".send(")
+            && (line_content.contains("payable") || line_content.contains("{value:"))
+        {
             return true; // Native ETH transfer - safe
         }
 
@@ -162,7 +163,9 @@ impl SecurePatternRecognizer {
     }
 
     fn check_access_control(&self, finding: &Finding, source: &str) -> bool {
-        let function_name = finding.metadata.as_ref()
+        let function_name = finding
+            .metadata
+            .as_ref()
             .and_then(|m| m.affected_functions.first())
             .map(|s| s.as_str())
             .unwrap_or("");
@@ -197,8 +200,8 @@ impl SecurePatternRecognizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Severity, Confidence};
     use crate::core::result::Location;
+    use crate::core::{Confidence, Severity};
 
     #[test]
     fn test_recognizes_nonreentrant_modifier() {

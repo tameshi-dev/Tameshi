@@ -3,8 +3,8 @@
 //! This scanner analyzes Solidity source code using tree-sitter queries to detect
 //! DoS vulnerabilities that are lost in IR transformation.
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use crate::representations::source::SourceRepresentation;
 use anyhow::Result;
 
@@ -20,12 +20,16 @@ impl SourceDoSVulnerabilitiesScanner {
 
         let has_dynamic_bound = condition.contains(".length") ||
                                 condition.contains('(') ||  // Function call
-                                condition.contains('[');    // Array access
+                                condition.contains('['); // Array access
 
         has_numeric_literal && !has_dynamic_bound
     }
 
-    fn analyze_ast(&self, source_repr: &SourceRepresentation, contract_name: &str) -> Result<Vec<Finding>> {
+    fn analyze_ast(
+        &self,
+        source_repr: &SourceRepresentation,
+        contract_name: &str,
+    ) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
 
         for loop_info in &source_repr.loops {
@@ -35,7 +39,9 @@ impl SourceDoSVulnerabilitiesScanner {
                 continue;
             }
 
-            if loop_info.contains_external_calls && (loop_info.contains_storage_writes || loop_info.iterates_over_length) {
+            if loop_info.contains_external_calls
+                && (loop_info.contains_storage_writes || loop_info.iterates_over_length)
+            {
                 findings.push(
                     Finding::new(
                         "dos-external-call-loop-source".to_string(),
@@ -61,7 +67,9 @@ impl SourceDoSVulnerabilitiesScanner {
                 );
             }
 
-            if loop_info.contains_storage_writes && (loop_info.contains_external_calls || loop_info.iterates_over_length) {
+            if loop_info.contains_storage_writes
+                && (loop_info.contains_external_calls || loop_info.iterates_over_length)
+            {
                 findings.push(
                     Finding::new(
                         "dos-gas-limit-loop-source".to_string(),
@@ -87,7 +95,10 @@ impl SourceDoSVulnerabilitiesScanner {
                 );
             }
 
-            if loop_info.iterates_over_length && !loop_info.contains_external_calls && !loop_info.contains_storage_writes {
+            if loop_info.iterates_over_length
+                && !loop_info.contains_external_calls
+                && !loop_info.contains_storage_writes
+            {
                 findings.push(
                     Finding::new(
                         "dos-unbounded-loop-source".to_string(),
@@ -154,7 +165,10 @@ impl Scanner for SourceDoSVulnerabilitiesScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path.as_deref().unwrap_or("unknown.sol");
+        let file_path = contract_info
+            .source_path
+            .as_deref()
+            .unwrap_or("unknown.sol");
 
         let source_repr = SourceRepresentation::from_source(source, file_path, contract_name)?;
 
@@ -208,8 +222,13 @@ mod tests {
         let scanner = SourceDoSVulnerabilitiesScanner::new();
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
-        assert!(result.len() >= 1, "Expected at least 1 unbounded loop finding");
-        assert!(result.iter().any(|f| f.description.contains("Unbounded loop") || f.description.contains("gas limit")));
+        assert!(
+            result.len() >= 1,
+            "Expected at least 1 unbounded loop finding"
+        );
+        assert!(result.iter().any(
+            |f| f.description.contains("Unbounded loop") || f.description.contains("gas limit")
+        ));
     }
 
     #[test]

@@ -1,10 +1,10 @@
 use crate::llm::{
-    thalir_extractor::ThalIRExtractor,
-    scanner::{LLMScanner, LLMScannerConfig},
     hybrid_extractor::HybridExtractor,
     provider::{LLMProvider, OpenAIProvider},
     representation::RepresentationConfig,
+    scanner::{LLMScanner, LLMScannerConfig},
     source_extractor::SoliditySourceExtractor,
+    thalir_extractor::ThalIRExtractor,
 };
 use anyhow::Result;
 use std::sync::Arc;
@@ -190,7 +190,6 @@ impl LLMScannerFactory {
         LLMScanner::new(self.provider.clone(), config).with_extractor(source_extractor)
     }
 
-
     pub fn create_source_reentrancy_scanner(&self) -> LLMScanner {
         let config = LLMScannerConfig {
             template_name: "source_reentrancy".to_string(),
@@ -310,7 +309,6 @@ impl LLMScannerFactory {
         LLMScanner::new(self.provider.clone(), config).with_extractor(source_extractor)
     }
 
-
     pub fn create_thalir_scanner(&self) -> LLMScanner {
         let config = LLMScannerConfig {
             template_name: "thalir-simple".to_string(),
@@ -324,9 +322,7 @@ impl LLMScannerFactory {
             dump_prompt: false,
         };
 
-        let thalir_extractor = Box::new(ThalIRExtractor::new(
-            config.representation_config.clone()
-        ));
+        let thalir_extractor = Box::new(ThalIRExtractor::new(config.representation_config.clone()));
         LLMScanner::new(self.provider.clone(), config).with_extractor(thalir_extractor)
     }
 
@@ -343,9 +339,7 @@ impl LLMScannerFactory {
             dump_prompt: false,
         };
 
-        let thalir_extractor = Box::new(ThalIRExtractor::new(
-            config.representation_config.clone()
-        ));
+        let thalir_extractor = Box::new(ThalIRExtractor::new(config.representation_config.clone()));
         LLMScanner::new(self.provider.clone(), config).with_extractor(thalir_extractor)
     }
 
@@ -355,16 +349,14 @@ impl LLMScannerFactory {
             scanner_name: "llm_hybrid_reentrancy".to_string(),
             description: "Hybrid source + IR reentrancy vulnerability scanner".to_string(),
             temperature: 0.1,
-            max_tokens: 4000, // Higher token limit for dual representations
+            max_tokens: 4000,          // Higher token limit for dual representations
             confidence_threshold: 0.7, // Higher threshold for hybrid validation
             include_low_severity: false,
             representation_config: RepresentationConfig::default(),
             dump_prompt: false,
         };
 
-        let hybrid_extractor = Box::new(HybridExtractor::new(
-            config.representation_config.clone()
-        ));
+        let hybrid_extractor = Box::new(HybridExtractor::new(config.representation_config.clone()));
         LLMScanner::new(self.provider.clone(), config).with_extractor(hybrid_extractor)
     }
 
@@ -381,9 +373,7 @@ impl LLMScannerFactory {
             dump_prompt: false,
         };
 
-        let hybrid_extractor = Box::new(HybridExtractor::new(
-            config.representation_config.clone()
-        ));
+        let hybrid_extractor = Box::new(HybridExtractor::new(config.representation_config.clone()));
         LLMScanner::new(self.provider.clone(), config).with_extractor(hybrid_extractor)
     }
 

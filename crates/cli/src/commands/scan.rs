@@ -44,32 +44,17 @@ use clap::{Subcommand, ValueEnum};
 use std::fs;
 use std::path::PathBuf;
 use tameshi_scanners::{
-    ScanningEngine, RepresentationBundle,
-    AnalysisContext, ContractInfo,
-    IRReentrancyScanner,
-    IRAccessControlScanner,
-    IRUncheckedReturnScanner,
-    IRStateModificationScanner,
-    IRDangerousFunctionsScanner,
-    IRIntegerOverflowScanner,
-    IRTimeVulnerabilityScanner,
-    IRDoSVulnerabilityScanner,
-    IRPriceManipulationScanner,
-    IRCrossFunctionReentrancyScanner,
-    SourceLoopReentrancyScanner,
-    SourceClassicReentrancyScanner,
-    SourceIntegerOverflowScanner,
+    analysis::{parse_solidity_version, OpenZeppelinPatternRecognizer},
+    core::{Scanner, ScannerConfig},
+    AnalysisContext, Confidence, ContractInfo, Finding, IRAccessControlScanner,
+    IRCrossFunctionReentrancyScanner, IRDangerousFunctionsScanner, IRDoSVulnerabilityScanner,
+    IRIntegerOverflowScanner, IRPriceManipulationScanner, IRReentrancyScanner,
+    IRStateModificationScanner, IRTimeVulnerabilityScanner, IRUncheckedReturnScanner,
+    RepresentationBundle, ScanningEngine, Severity, SimpleTimestampScanner,
+    SourceClassicReentrancyScanner, SourceDangerousFunctionsScanner, SourceDelegatecallScanner,
+    SourceDoSVulnerabilitiesScanner, SourceGasLimitDoSScanner, SourceIntegerOverflowScanner,
+    SourceLoopReentrancyScanner, SourceMissingAccessControlScanner, SourceUncheckedOverflowScanner,
     SourceUncheckedReturnScanner,
-    SourceDangerousFunctionsScanner,
-    SourceDoSVulnerabilitiesScanner,
-    SourceMissingAccessControlScanner,
-    SourceGasLimitDoSScanner,
-    SourceDelegatecallScanner,
-    SourceUncheckedOverflowScanner,
-    SimpleTimestampScanner,
-    analysis::{OpenZeppelinPatternRecognizer, parse_solidity_version},
-    core::{ScannerConfig, Scanner},
-    Finding, Severity, Confidence,
 };
 use walkdir::WalkDir;
 
@@ -206,14 +191,30 @@ impl ScanCommand {
 
                     if let Some(suite_type) = llm_suite {
                         if input.is_file() {
-                            scan_single_file_with_llm_suite(input, *suite_type, &model_name, *dump_prompt, *dump_response, *format, *verbose)?;
+                            scan_single_file_with_llm_suite(
+                                input,
+                                *suite_type,
+                                &model_name,
+                                *dump_prompt,
+                                *dump_response,
+                                *format,
+                                *verbose,
+                            )?;
                         } else {
                             anyhow::bail!("LLM scanning currently only supports single files");
                         }
                     } else {
                         let scanner_type = llm_scanner.unwrap_or(LLMScannerType::Comprehensive);
                         if input.is_file() {
-                            scan_single_file_with_llm(input, scanner_type, &model_name, *dump_prompt, *dump_response, *format, *verbose)?;
+                            scan_single_file_with_llm(
+                                input,
+                                scanner_type,
+                                &model_name,
+                                *dump_prompt,
+                                *dump_response,
+                                *format,
+                                *verbose,
+                            )?;
                         } else {
                             anyhow::bail!("LLM scanning currently only supports single files");
                         }
@@ -258,12 +259,19 @@ fn scan_single_file(
         println!("🔄 Transforming {} to Tameshi IR...", path.display());
     }
 
-    let filename = path.file_name()
+    let filename = path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown.sol");
 
-    let contracts = thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename))
-        .with_context(|| format!("Failed to transform Solidity to Tameshi IR: {}", path.display()))?;
+    let contracts =
+        thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename))
+            .with_context(|| {
+                format!(
+                    "Failed to transform Solidity to Tameshi IR: {}",
+                    path.display()
+                )
+            })?;
 
     if contracts.is_empty() {
         if verbose {
@@ -301,8 +309,10 @@ fn scan_single_file(
 
         if let Some(version) = parse_solidity_version(&content) {
             if verbose {
-                println!("   📋 Solidity version: {}.{}.{}",
-                    version.major, version.minor, version.patch);
+                println!(
+                    "   📋 Solidity version: {}.{}.{}",
+                    version.major, version.minor, version.patch
+                );
             }
             context.set_metadata("solidity_version".to_string(), version);
         }
@@ -318,7 +328,8 @@ fn scan_single_file(
         let source_delegatecall_scanner = SourceDelegatecallScanner::new();
         let source_unchecked_overflow_scanner = SourceUncheckedOverflowScanner::new();
         let simple_timestamp_scanner = SimpleTimestampScanner::new();
-        let access_control_scanner = IRAccessControlScanner::new().with_source_code(content.clone());
+        let access_control_scanner =
+            IRAccessControlScanner::new().with_source_code(content.clone());
 
         let source_findings = source_loop_scanner.scan(&context)?;
         all_findings.extend(source_findings);
@@ -366,8 +377,10 @@ fn scan_single_file(
 
     eprintln!("\n=== ALL FINDINGS BEFORE FILTERING ===");
     for f in &all_findings {
-        eprintln!("  Scanner: {} | Type: {} | Confidence: {} | Score: {}",
-                 f.scanner_id, f.finding_type, f.confidence, f.confidence_score);
+        eprintln!(
+            "  Scanner: {} | Type: {} | Confidence: {} | Score: {}",
+            f.scanner_id, f.finding_type, f.confidence, f.confidence_score
+        );
     }
 
     let confidence_threshold = min_confidence.threshold();
@@ -376,22 +389,33 @@ fn scan_single_file(
         .filter(|f| f.confidence_score >= confidence_threshold)
         .collect();
 
-    eprintln!("\n=== AFTER CONFIDENCE FILTER: {} findings ===", filtered_findings.len());
+    eprintln!(
+        "\n=== AFTER CONFIDENCE FILTER: {} findings ===",
+        filtered_findings.len()
+    );
 
     if verbose {
-        println!("🎯 Confidence filtering: {} findings (threshold: {:.1})",
-                 filtered_findings.len(), confidence_threshold);
+        println!(
+            "🎯 Confidence filtering: {} findings (threshold: {:.1})",
+            filtered_findings.len(),
+            confidence_threshold
+        );
     }
 
     let before_function_filter = filtered_findings.len();
     filtered_findings.retain(|f| !should_skip_finding(f));
 
-    eprintln!("\n=== AFTER FUNCTION FILTER: {} findings (removed {}) ===",
-             filtered_findings.len(), before_function_filter - filtered_findings.len());
+    eprintln!(
+        "\n=== AFTER FUNCTION FILTER: {} findings (removed {}) ===",
+        filtered_findings.len(),
+        before_function_filter - filtered_findings.len()
+    );
 
     if verbose && before_function_filter > filtered_findings.len() {
-        println!("🔧 Function pattern filtering: removed {} non-vulnerable patterns",
-                 before_function_filter - filtered_findings.len());
+        println!(
+            "🔧 Function pattern filtering: removed {} non-vulnerable patterns",
+            before_function_filter - filtered_findings.len()
+        );
     }
 
     let secure_recognizer = OpenZeppelinPatternRecognizer::default();
@@ -399,22 +423,30 @@ fn scan_single_file(
     filtered_findings.retain(|f| {
         let keep = !secure_recognizer.is_likely_false_positive(f, Some(&content));
         if !keep {
-            eprintln!("  OpenZeppelin filter removing: {} | {}", f.scanner_id, f.finding_type);
+            eprintln!(
+                "  OpenZeppelin filter removing: {} | {}",
+                f.scanner_id, f.finding_type
+            );
         }
         keep
     });
 
-    eprintln!("\n=== AFTER SECURE PATTERN FILTER: {} findings (removed {}) ===",
-             filtered_findings.len(), before_secure_filter - filtered_findings.len());
+    eprintln!(
+        "\n=== AFTER SECURE PATTERN FILTER: {} findings (removed {}) ===",
+        filtered_findings.len(),
+        before_secure_filter - filtered_findings.len()
+    );
 
     if verbose && before_secure_filter > filtered_findings.len() {
-        println!("🛡️  Secure pattern filtering: removed {} OpenZeppelin false positives",
-                 before_secure_filter - filtered_findings.len());
+        println!(
+            "🛡️  Secure pattern filtering: removed {} OpenZeppelin false positives",
+            before_secure_filter - filtered_findings.len()
+        );
     }
 
     let config = ScannerConfig::default();
-    let combined_report = tameshi_scanners::ScanReport::new(filtered_findings)
-        .with_deduplication(&config);
+    let combined_report =
+        tameshi_scanners::ScanReport::new(filtered_findings).with_deduplication(&config);
     output_report(&combined_report, format, verbose, Some(path))?;
     Ok(())
 }
@@ -431,7 +463,7 @@ fn scan_directory(
     }
 
     let solidity_files = find_solidity_files(dir)?;
-    
+
     if solidity_files.is_empty() {
         println!("⚠️  No Solidity files found in {}", dir.display());
         return Ok(());
@@ -453,15 +485,23 @@ fn scan_directory(
             }
         };
 
-        let filename = file_path.file_name()
+        let filename = file_path
+            .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("unknown.sol");
 
-        let contracts = match thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename)) {
+        let contracts = match thalir_transform::transform_solidity_to_ir_with_filename(
+            &content,
+            Some(filename),
+        ) {
             Ok(contracts) => contracts,
             Err(e) => {
                 if verbose {
-                    eprintln!("Warning: Failed to transform {}: {}", file_path.display(), e);
+                    eprintln!(
+                        "Warning: Failed to transform {}: {}",
+                        file_path.display(),
+                        e
+                    );
                 }
                 continue;
             }
@@ -525,16 +565,16 @@ fn create_scanning_engine(suite: ScannerSuite) -> Result<ScanningEngine> {
 
 fn find_solidity_files(dir: &PathBuf) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
-    
+
     for entry in WalkDir::new(dir) {
         let entry = entry?;
         let path = entry.path();
-        
+
         if path.is_file() && path.extension().is_some_and(|ext| ext == "sol") {
             files.push(path.to_path_buf());
         }
     }
-    
+
     Ok(files)
 }
 
@@ -552,7 +592,8 @@ fn output_report(
 
             if let Some(stats) = report.deduplication_stats() {
                 if stats.removed_count > 0 {
-                    println!("🔄 Deduplication: Removed {} duplicate findings ({:.1}%)",
+                    println!(
+                        "🔄 Deduplication: Removed {} duplicate findings ({:.1}%)",
                         stats.removed_count,
                         stats.reduction_percentage()
                     );
@@ -565,7 +606,8 @@ fn output_report(
             } else {
                 println!("⚠️  Found {} potential vulnerabilities:", findings.len());
                 for (i, finding) in findings.iter().enumerate() {
-                    println!("\n{}. {} {}: {}",
+                    println!(
+                        "\n{}. {} {}: {}",
                         i + 1,
                         finding.severity.emoji(),
                         finding.severity,
@@ -610,15 +652,16 @@ fn output_directory_report(
             } else {
                 println!("\n📊 Directory Scan Summary:");
                 println!("   Files with findings: {}", all_findings.len());
-                
+
                 let total_findings: usize = all_findings.values().map(|v| v.len()).sum();
                 println!("   Total findings: {}", total_findings);
-                
+
                 println!("\n📋 Detailed Results:");
                 for (file_path, findings) in all_findings {
                     println!("\n📄 {}", file_path.display());
                     for (i, finding) in findings.iter().enumerate() {
-                        println!("  {}. {} {}: {}", 
+                        println!(
+                            "  {}. {} {}: {}",
                             i + 1,
                             finding.severity.emoji(),
                             finding.severity,
@@ -645,12 +688,13 @@ fn output_directory_report(
                 println!("## Summary\n");
                 println!("- Files scanned with findings: {}", all_findings.len());
                 println!("- Total findings: {}\n", total_findings);
-                
+
                 println!("## Detailed Results\n");
                 for (file_path, findings) in all_findings {
                     println!("### 📄 File: `{}`\n", file_path.display());
                     for finding in findings {
-                        println!("- **{} {}**: {}", 
+                        println!(
+                            "- **{} {}**: {}",
                             finding.severity.emoji(),
                             finding.severity,
                             finding.title
@@ -675,12 +719,13 @@ fn scan_single_file_with_llm(
     format: OutputFormat,
     verbose: bool,
 ) -> Result<()> {
-    use tameshi_scanners::llm_scanners::LLMComprehensiveScanner;
-    use tameshi_scanners::llm::provider::OpenAIProvider;
     use std::sync::Arc;
+    use tameshi_scanners::llm::provider::OpenAIProvider;
+    use tameshi_scanners::llm_scanners::LLMComprehensiveScanner;
 
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .context("OPENAI_API_KEY environment variable not set. Set it with: export OPENAI_API_KEY=sk-...")?;
+    let api_key = std::env::var("OPENAI_API_KEY").context(
+        "OPENAI_API_KEY environment variable not set. Set it with: export OPENAI_API_KEY=sk-...",
+    )?;
 
     if verbose {
         println!("🤖 Using LLM comprehensive scanner");
@@ -694,12 +739,19 @@ fn scan_single_file_with_llm(
         println!("🔄 Transforming {} to Tameshi IR...", path.display());
     }
 
-    let filename = path.file_name()
+    let filename = path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown.sol");
 
-    let contracts = thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename))
-        .with_context(|| format!("Failed to transform Solidity to Tameshi IR: {}", path.display()))?;
+    let contracts =
+        thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename))
+            .with_context(|| {
+                format!(
+                    "Failed to transform Solidity to Tameshi IR: {}",
+                    path.display()
+                )
+            })?;
 
     if contracts.is_empty() {
         println!("⚠️  No contracts found in {}", path.display());
@@ -717,7 +769,12 @@ fn scan_single_file_with_llm(
                 .with_dump_response(dump_response);
 
             println!("\n{}", "=".repeat(60).bright_cyan());
-            println!("{}", format!("🤖 LLM Comprehensive Security Analysis ({})", model).bright_cyan().bold());
+            println!(
+                "{}",
+                format!("🤖 LLM Comprehensive Security Analysis ({})", model)
+                    .bright_cyan()
+                    .bold()
+            );
             println!("{}", "=".repeat(60).bright_cyan());
 
             let contract_name = if let Some(contract) = contracts.first() {
@@ -737,9 +794,13 @@ fn scan_single_file_with_llm(
             if findings.is_empty() {
                 println!("  ✅ No vulnerabilities detected");
             } else {
-                println!("\n  ⚠️  Found {} potential security issue(s):", findings.len());
+                println!(
+                    "\n  ⚠️  Found {} potential security issue(s):",
+                    findings.len()
+                );
                 for finding in &findings {
-                    println!("\n  {} {} - {}",
+                    println!(
+                        "\n  {} {} - {}",
                         finding.severity.emoji(),
                         finding.severity.to_string().bold(),
                         finding.title.bright_white().bold()
@@ -771,8 +832,9 @@ fn create_llm_scanners(
 ) -> Result<Vec<std::sync::Arc<dyn tameshi_scanners::core::Scanner>>> {
     use std::sync::Arc;
 
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .context("OPENAI_API_KEY environment variable not set. Set it with: export OPENAI_API_KEY=sk-...")?;
+    let api_key = std::env::var("OPENAI_API_KEY").context(
+        "OPENAI_API_KEY environment variable not set. Set it with: export OPENAI_API_KEY=sk-...",
+    )?;
 
     std::env::set_var("OPENAI_API_KEY", &api_key);
     let provider = Arc::new(OpenAIProvider::new(Some(model.to_string()))?);
@@ -809,12 +871,19 @@ fn scan_single_file_with_llm_suite(
         println!("🔄 Transforming {} to Tameshi IR...", path.display());
     }
 
-    let filename = path.file_name()
+    let filename = path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("unknown.sol");
 
-    let contracts = thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename))
-        .with_context(|| format!("Failed to transform Solidity to Tameshi IR: {}", path.display()))?;
+    let contracts =
+        thalir_transform::transform_solidity_to_ir_with_filename(&content, Some(filename))
+            .with_context(|| {
+                format!(
+                    "Failed to transform Solidity to Tameshi IR: {}",
+                    path.display()
+                )
+            })?;
 
     if contracts.is_empty() {
         println!("⚠️  No contracts found in {}", path.display());
@@ -824,11 +893,21 @@ fn scan_single_file_with_llm_suite(
     let scanners = create_llm_scanners(suite, model, dump_prompt, dump_response)?;
 
     println!("\n{}", "=".repeat(60).bright_cyan());
-    println!("{}", format!("🤖 LLM Scanner Suite: {:?} ({})", suite, model).bright_cyan().bold());
+    println!(
+        "{}",
+        format!("🤖 LLM Scanner Suite: {:?} ({})", suite, model)
+            .bright_cyan()
+            .bold()
+    );
     println!("{}", "=".repeat(60).bright_cyan());
 
     for scanner in scanners {
-        println!("\n{}", format!("▶ Running: {}", scanner.name()).bright_yellow().bold());
+        println!(
+            "\n{}",
+            format!("▶ Running: {}", scanner.name())
+                .bright_yellow()
+                .bold()
+        );
         println!("{}", format!("  {}", scanner.description()).dimmed());
 
         for contract in &contracts {
@@ -856,7 +935,8 @@ fn scan_single_file_with_llm_suite(
             } else {
                 println!("\n  ⚠️  Found {} potential issue(s):", findings.len());
                 for finding in &findings {
-                    println!("\n  {} {} - {}",
+                    println!(
+                        "\n  {} {} - {}",
                         finding.severity.emoji(),
                         finding.severity.to_string().bold(),
                         finding.title.bright_white().bold()
@@ -915,17 +995,19 @@ fn should_skip_finding(finding: &Finding) -> bool {
                 if lower_name.starts_with("is") && finding.severity < Severity::High {
                     return true;
                 }
-                if lower_name.starts_with("get") ||
-                   lower_name.starts_with("has") ||
-                   lower_name.starts_with("can") ||
-                   lower_name.starts_with("check") {
+                if lower_name.starts_with("get")
+                    || lower_name.starts_with("has")
+                    || lower_name.starts_with("can")
+                    || lower_name.starts_with("check")
+                {
                     return true;
                 }
-            } else if lower_name.starts_with("get") ||
-               lower_name.starts_with("is") ||
-               lower_name.starts_with("has") ||
-               lower_name.starts_with("can") ||
-               lower_name.starts_with("check") {
+            } else if lower_name.starts_with("get")
+                || lower_name.starts_with("is")
+                || lower_name.starts_with("has")
+                || lower_name.starts_with("can")
+                || lower_name.starts_with("check")
+            {
                 return true;
             }
 
@@ -936,11 +1018,12 @@ fn should_skip_finding(finding: &Finding) -> bool {
                 return true;
             }
 
-            if lower_name == "decimals" ||
-               lower_name == "symbol" ||
-               lower_name == "name" ||
-               lower_name == "totalsupply" ||
-               lower_name == "owner" {
+            if lower_name == "decimals"
+                || lower_name == "symbol"
+                || lower_name == "name"
+                || lower_name == "totalsupply"
+                || lower_name == "owner"
+            {
                 return true;
             }
         }

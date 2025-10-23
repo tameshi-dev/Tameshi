@@ -4,8 +4,8 @@
 //! Uses conservative line-window matching to avoid collapsing distinct vulnerabilities.
 
 use crate::core::Finding;
-use std::hash::{Hash, Hasher};
 use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FindingFingerprint {
@@ -30,15 +30,19 @@ impl FindingFingerprint {
     pub fn from_finding(finding: &Finding, base_path: &str) -> Self {
         let category = Self::extract_category(&finding.scanner_id);
 
-        let rel_file = finding.locations.first()
+        let rel_file = finding
+            .locations
+            .first()
             .map(|loc| {
-                let mut file_path = loc.file
+                let mut file_path = loc
+                    .file
                     .strip_prefix(base_path)
                     .unwrap_or(&loc.file)
                     .to_string();
 
                 file_path = file_path.trim_start_matches('/').to_string();
-                file_path = file_path.strip_prefix("contracts/")
+                file_path = file_path
+                    .strip_prefix("contracts/")
                     .unwrap_or(&file_path)
                     .to_string();
 
@@ -46,12 +50,12 @@ impl FindingFingerprint {
             })
             .unwrap_or_default();
 
-        let function_signature = finding.metadata.as_ref()
+        let function_signature = finding
+            .metadata
+            .as_ref()
             .and_then(|m| m.affected_functions.first())
             .cloned()
-            .unwrap_or_else(|| {
-                Self::extract_function_name(&finding.title, &finding.description)
-            });
+            .unwrap_or_else(|| Self::extract_function_name(&finding.title, &finding.description));
 
         let line = finding.locations.first().map(|loc| loc.line).unwrap_or(0);
         let line_bucket = line / 5;
@@ -134,10 +138,11 @@ impl FindingFingerprint {
             return true;
         }
 
-        if !self.function_signature.is_empty() &&
-           !other.function_signature.is_empty() &&
-           self.function_signature == other.function_signature
-           && line_diff <= 20 {
+        if !self.function_signature.is_empty()
+            && !other.function_signature.is_empty()
+            && self.function_signature == other.function_signature
+            && line_diff <= 20
+        {
             return true;
         }
 
@@ -163,7 +168,11 @@ impl FindingFingerprint {
     }
 
     pub fn grouping_key(&self) -> (String, String, usize) {
-        (self.category.clone(), self.rel_file.clone(), self.line_bucket)
+        (
+            self.category.clone(),
+            self.rel_file.clone(),
+            self.line_bucket,
+        )
     }
 }
 
@@ -187,8 +196,8 @@ impl DeduplicationStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::{Severity, Confidence};
     use crate::core::result::Location;
+    use crate::core::{Confidence, Severity};
 
     #[test]
     fn test_fingerprint_creation() {
@@ -250,7 +259,7 @@ mod tests {
         .with_function("withdraw")
         .with_location(Location {
             file: "test.sol".to_string(),
-            line: 44,  // Within ±3 lines
+            line: 44, // Within ±3 lines
             column: 0,
             end_line: None,
             end_column: None,
@@ -336,7 +345,7 @@ mod tests {
         .with_contract("Test")
         .with_location(Location {
             file: "test.sol".to_string(),
-            line: 50,  // Far apart
+            line: 50, // Far apart
             column: 0,
             end_line: None,
             end_column: None,

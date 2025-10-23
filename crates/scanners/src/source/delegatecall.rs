@@ -1,6 +1,5 @@
-
-use crate::core::{Scanner, Finding, Severity, Confidence, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
 use tree_sitter::Node;
 
@@ -12,10 +11,10 @@ impl SourceDelegatecallScanner {
     }
 
     fn is_immutable_or_constant(&self, var_name: &str, source: &str) -> bool {
-        source.contains(&format!("immutable {}", var_name)) ||
-        source.contains(&format!("{} immutable", var_name)) ||
-        source.contains(&format!("constant {}", var_name)) ||
-        source.contains(&format!("{} constant", var_name))
+        source.contains(&format!("immutable {}", var_name))
+            || source.contains(&format!("{} immutable", var_name))
+            || source.contains(&format!("constant {}", var_name))
+            || source.contains(&format!("{} constant", var_name))
     }
 
     fn extract_delegatecall_target<'a>(&self, expr_text: &'a str) -> Option<&'a str> {
@@ -66,20 +65,21 @@ impl SourceDelegatecallScanner {
         for (line_idx, line) in body_text.lines().enumerate() {
             if line.contains("delegatecall(") {
                 if let Some(target) = self.extract_delegatecall_target(line) {
-                    let (severity, vuln_type, risk_level, recommendation) =
-                        if self.is_function_parameter(target, function_node, source) {
-                            (Severity::Critical,
+                    let (severity, vuln_type, risk_level, recommendation) = if self
+                        .is_function_parameter(target, function_node, source)
+                    {
+                        (Severity::Critical,
                              "delegatecall-to-user-controlled",
                              "CRITICAL - User can execute arbitrary code",
                              "Remove user control over delegatecall target. Use a whitelist of approved addresses or make the target immutable.")
-                        } else if self.is_immutable_or_constant(target, source) {
-                            continue; // Don't report safe patterns
-                        } else {
-                            (Severity::High,
+                    } else if self.is_immutable_or_constant(target, source) {
+                        continue; // Don't report safe patterns
+                    } else {
+                        (Severity::High,
                              "delegatecall-to-mutable",
                              "HIGH - State variable can be changed",
                              "Make the delegatecall target immutable if using proxy pattern, or add strict access control for changing it.")
-                        };
+                    };
 
                     let actual_line = body.start_position().row + 1 + line_idx;
 
@@ -159,13 +159,15 @@ impl Scanner for SourceDelegatecallScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
-        parser.set_language(&language)
+        parser
+            .set_language(&language)
             .expect("Failed to load Solidity grammar");
 
         let tree = match parser.parse(source, None) {
@@ -201,7 +203,9 @@ impl SourceDelegatecallScanner {
 
         if kind == "contract_declaration" {
             let current_contract = if let Some(name_node) = node.child_by_field_name("name") {
-                name_node.utf8_text(source.as_bytes()).unwrap_or(contract_name)
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or(contract_name)
             } else {
                 contract_name
             };

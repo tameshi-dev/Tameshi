@@ -1,6 +1,5 @@
-
-use crate::core::{Scanner, Finding, Severity, Confidence, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
 use tree_sitter::{Node, TreeCursor};
 
@@ -12,18 +11,18 @@ impl SourceMissingAccessControlScanner {
     }
 
     fn has_sensitive_operation(&self, text: &str) -> bool {
-        text.contains(".transfer(") ||
-        text.contains(".send(") ||
-        text.contains(".call{value:") ||
-        text.contains("selfdestruct(") ||
-        text.contains("delegatecall(") ||
-        (text.contains("owner =") && !text.contains("owner ==")) ||
-        (text.contains("admin =") && !text.contains("admin ==")) ||
-        text.contains("_mint(") ||
-        text.contains("_burn(") ||
-        text.contains("totalSupply =") ||
-        text.contains("totalSupply +=") ||
-        text.contains("totalSupply -=")
+        text.contains(".transfer(")
+            || text.contains(".send(")
+            || text.contains(".call{value:")
+            || text.contains("selfdestruct(")
+            || text.contains("delegatecall(")
+            || (text.contains("owner =") && !text.contains("owner =="))
+            || (text.contains("admin =") && !text.contains("admin =="))
+            || text.contains("_mint(")
+            || text.contains("_burn(")
+            || text.contains("totalSupply =")
+            || text.contains("totalSupply +=")
+            || text.contains("totalSupply -=")
     }
 
     fn has_access_control(&self, text: &str) -> bool {
@@ -39,29 +38,29 @@ impl SourceMissingAccessControlScanner {
 
         let text = &cleaned_text;
 
-        (text.contains("require") && text.contains("msg.sender") && text.contains("owner")) ||
-        (text.contains("require") && text.contains("msg.sender") && text.contains("admin")) ||
-        (text.contains("revert") && text.contains("owner")) ||
-        (text.contains("revert") && text.contains("admin")) ||
-        (text.contains("revert") && text.contains("authorized")) ||
-        (text.contains("assert") && text.contains("msg.sender") && text.contains("owner")) ||
-        text.contains("OnlyOwner()") ||
-        text.contains("Unauthorized()") ||
-        text.contains("NotOwner()")
+        (text.contains("require") && text.contains("msg.sender") && text.contains("owner"))
+            || (text.contains("require") && text.contains("msg.sender") && text.contains("admin"))
+            || (text.contains("revert") && text.contains("owner"))
+            || (text.contains("revert") && text.contains("admin"))
+            || (text.contains("revert") && text.contains("authorized"))
+            || (text.contains("assert") && text.contains("msg.sender") && text.contains("owner"))
+            || text.contains("OnlyOwner()")
+            || text.contains("Unauthorized()")
+            || text.contains("NotOwner()")
     }
 
     fn has_access_control_modifier(&self, function_node: Node, source: &str) -> bool {
         let func_text = function_node.utf8_text(source.as_bytes()).unwrap_or("");
 
-        func_text.contains("onlyOwner") ||
-        func_text.contains("onlyAdmin") ||
-        func_text.contains("onlyRole") ||
-        func_text.contains("onlyGovernance") ||
-        func_text.contains("onlyMinter") ||
-        func_text.contains("onlyPauser") ||
-        func_text.contains("onlyController") ||
-        func_text.contains("auth") ||
-        func_text.contains("restricted")
+        func_text.contains("onlyOwner")
+            || func_text.contains("onlyAdmin")
+            || func_text.contains("onlyRole")
+            || func_text.contains("onlyGovernance")
+            || func_text.contains("onlyMinter")
+            || func_text.contains("onlyPauser")
+            || func_text.contains("onlyController")
+            || func_text.contains("auth")
+            || func_text.contains("restricted")
     }
 
     fn is_self_operation(&self, func_name: &str, func_body: &str) -> bool {
@@ -72,13 +71,14 @@ impl SourceMissingAccessControlScanner {
         }
 
         if name_lower.contains("withdraw") {
-            if func_body.contains("balances[msg.sender]") ||
-               func_body.contains("deposits[msg.sender]") ||
-               func_body.contains("stakes[msg.sender]") {
+            if func_body.contains("balances[msg.sender]")
+                || func_body.contains("deposits[msg.sender]")
+                || func_body.contains("stakes[msg.sender]")
+            {
                 return true;
             }
             if func_body.contains("uint _amount") || func_body.contains("uint256 _amount") {
-                return false;  // This needs access control!
+                return false; // This needs access control!
             }
         }
 
@@ -132,24 +132,33 @@ impl SourceMissingAccessControlScanner {
             return findings;
         }
 
-        let (vuln_type, severity, description) = if body_text.contains(".transfer(") ||
-                                                    body_text.contains(".send(") ||
-                                                    body_text.contains(".call{value:") {
-            ("unprotected-ether-withdrawal",
-             Severity::High,
-             format!("Unprotected ether withdrawal in '{}'", function_name))
+        let (vuln_type, severity, description) = if body_text.contains(".transfer(")
+            || body_text.contains(".send(")
+            || body_text.contains(".call{value:")
+        {
+            (
+                "unprotected-ether-withdrawal",
+                Severity::High,
+                format!("Unprotected ether withdrawal in '{}'", function_name),
+            )
         } else if body_text.contains("owner =") || body_text.contains("admin =") {
-            ("unprotected-ownership-change",
-             Severity::Critical,
-             format!("Unprotected ownership change in '{}'", function_name))
+            (
+                "unprotected-ownership-change",
+                Severity::Critical,
+                format!("Unprotected ownership change in '{}'", function_name),
+            )
         } else if body_text.contains("selfdestruct") {
-            ("unprotected-selfdestruct",
-             Severity::Critical,
-             format!("Unprotected selfdestruct in '{}'", function_name))
+            (
+                "unprotected-selfdestruct",
+                Severity::Critical,
+                format!("Unprotected selfdestruct in '{}'", function_name),
+            )
         } else {
-            ("missing-access-control",
-             Severity::Medium,
-             format!("Missing access control in '{}'", function_name))
+            (
+                "missing-access-control",
+                Severity::Medium,
+                format!("Missing access control in '{}'", function_name),
+            )
         };
 
         let mut sensitive_line = function_node.start_position().row + 1;
@@ -225,13 +234,15 @@ impl Scanner for SourceMissingAccessControlScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
-        parser.set_language(&language)
+        parser
+            .set_language(&language)
             .expect("Failed to load Solidity grammar");
 
         let tree = match parser.parse(source, None) {
@@ -267,7 +278,9 @@ impl SourceMissingAccessControlScanner {
 
         if kind == "contract_declaration" {
             let current_contract = if let Some(name_node) = node.child_by_field_name("name") {
-                name_node.utf8_text(source.as_bytes()).unwrap_or(contract_name)
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or(contract_name)
             } else {
                 contract_name
             };

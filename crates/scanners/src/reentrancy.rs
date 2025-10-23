@@ -36,23 +36,23 @@
 //!
 //! This layered approach reduces false positives while maintaining high recall on real vulnerabilities.
 
-use crate::core::{Confidence, Finding, Severity, Location};
 use crate::analysis::{
-    SafePatternRecognizer, ConfidenceScorer, InterproceduralAnalyzer, LoopAnalyzer, PathExplorer,
+    ConfidenceScorer, InterproceduralAnalyzer, LoopAnalyzer, PathExplorer, SafePatternRecognizer,
 };
-use thalir_core::{
-    analysis::{
-        cursor::{ScannerCursor, IRCursor},
-        pass::{Pass, PassManager, AnalysisID},
-        pattern::{PatternBuilder, PatternMatcher},
-    },
-    contract::Contract,
-    instructions::Instruction,
-    block::BlockId,
-};
+use crate::core::{Confidence, Finding, Location, Severity};
+use anyhow::Result;
 #[cfg(test)]
 use thalir_core::analysis::Pattern;
-use anyhow::Result;
+use thalir_core::{
+    analysis::{
+        cursor::{IRCursor, ScannerCursor},
+        pass::{AnalysisID, Pass, PassManager},
+        pattern::{PatternBuilder, PatternMatcher},
+    },
+    block::BlockId,
+    contract::Contract,
+    instructions::Instruction,
+};
 
 pub struct IRReentrancyScanner {
     pattern_matcher: PatternMatcher,
@@ -126,7 +126,7 @@ impl IRReentrancyScanner {
             confidence_scorer: ConfidenceScorer::new(),
         }
     }
-    
+
     pub fn analyze(&mut self, contract: &Contract) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
 
@@ -135,7 +135,9 @@ impl IRReentrancyScanner {
         let cross_function_patterns = interprocedural.find_cross_function_reentrancy(contract);
 
         for (func_name, function) in &contract.functions {
-            let safe_analysis = self.safe_pattern_recognizer.analyze_function(function, contract);
+            let safe_analysis = self
+                .safe_pattern_recognizer
+                .analyze_function(function, contract);
 
             if self.should_skip_protected_function(&safe_analysis) {
                 continue;
@@ -204,12 +206,8 @@ impl IRReentrancyScanner {
             let loop_patterns = loop_analyzer.find_loop_reentrancy_patterns(function);
 
             for pattern in loop_patterns {
-                let finding = self.create_loop_finding(
-                    contract,
-                    func_name,
-                    &pattern,
-                    &safe_analysis,
-                );
+                let finding =
+                    self.create_loop_finding(contract, func_name, &pattern, &safe_analysis);
                 findings.push(finding);
             }
 
@@ -218,12 +216,8 @@ impl IRReentrancyScanner {
             let conditional_patterns = path_explorer.find_conditional_reentrancy();
 
             for pattern in conditional_patterns {
-                let finding = self.create_conditional_finding(
-                    contract,
-                    func_name,
-                    &pattern,
-                    &safe_analysis,
-                );
+                let finding =
+                    self.create_conditional_finding(contract, func_name, &pattern, &safe_analysis);
                 findings.push(finding);
             }
 
@@ -245,7 +239,10 @@ impl IRReentrancyScanner {
         Ok(findings)
     }
 
-    fn should_skip_protected_function(&self, safe_analysis: &crate::analysis::SafePatternAnalysis) -> bool {
+    fn should_skip_protected_function(
+        &self,
+        safe_analysis: &crate::analysis::SafePatternAnalysis,
+    ) -> bool {
         use crate::analysis::SafePattern;
 
         if safe_analysis.safety_confidence <= 0.9 {
@@ -255,11 +252,11 @@ impl IRReentrancyScanner {
         safe_analysis.has_pattern(SafePattern::ReentrancyGuard)
             || safe_analysis.has_pattern(SafePattern::MutexLock)
     }
-    
+
     pub fn get_findings(&self) -> Vec<Finding> {
         self.findings.clone()
     }
-    
+
     fn is_external_call(&self, inst: &Instruction) -> bool {
         let inst_str = format!("{:?}", inst);
 
@@ -275,10 +272,10 @@ impl IRReentrancyScanner {
             }
             Instruction::DelegateCall { .. } => true,
             _ => {
-                inst_str.contains("call_ext") ||
-                inst_str.contains("external_call") ||
-                inst_str.contains("call{value:") ||
-                inst_str.contains("delegatecall")
+                inst_str.contains("call_ext")
+                    || inst_str.contains("external_call")
+                    || inst_str.contains("call{value:")
+                    || inst_str.contains("delegatecall")
             }
         }
     }
@@ -286,34 +283,33 @@ impl IRReentrancyScanner {
     fn is_delegatecall(&self, inst: &Instruction) -> bool {
         match inst {
             Instruction::DelegateCall { .. } => true,
-            Instruction::Call { target, .. } => {
-                match target {
-                    thalir_core::instructions::CallTarget::Internal(name) => {
-                        name.contains("delegatecall")
-                    }
-                    _ => false,
+            Instruction::Call { target, .. } => match target {
+                thalir_core::instructions::CallTarget::Internal(name) => {
+                    name.contains("delegatecall")
                 }
-            }
+                _ => false,
+            },
             _ => {
                 let inst_str = format!("{:?}", inst);
                 inst_str.contains("DelegateCall")
             }
         }
     }
-    
+
     fn is_state_modification(&self, inst: &Instruction) -> bool {
         let inst_str = format!("{:?}", inst);
-        
-        matches!(inst, 
-            Instruction::StorageStore { .. } |
-            Instruction::Store { .. } |
-            Instruction::MappingStore { .. } |
-            Instruction::ArrayStore { .. }
-        ) || inst_str.contains("mapping_store") ||
-             inst_str.contains("storage_store") ||
-             inst_str.contains("sstore")
+
+        matches!(
+            inst,
+            Instruction::StorageStore { .. }
+                | Instruction::Store { .. }
+                | Instruction::MappingStore { .. }
+                | Instruction::ArrayStore { .. }
+        ) || inst_str.contains("mapping_store")
+            || inst_str.contains("storage_store")
+            || inst_str.contains("sstore")
     }
-    
+
     fn get_call_target(&self, inst: &Instruction) -> String {
         match inst {
             Instruction::Call { target, .. } => format!("{:?}", target),
@@ -321,7 +317,7 @@ impl IRReentrancyScanner {
             _ => "unknown".to_string(),
         }
     }
-    
+
     fn get_modified_variable(&self, inst: &Instruction) -> String {
         match inst {
             Instruction::StorageStore { key, .. } => format!("storage:{:?}", key),
@@ -331,7 +327,7 @@ impl IRReentrancyScanner {
             _ => "unknown".to_string(),
         }
     }
-    
+
     fn is_vulnerable_pattern(
         &self,
         call: &CallLocation,
@@ -344,7 +340,7 @@ impl IRReentrancyScanner {
             self.block_dominates(call.block, state_mod.block, function)
         }
     }
-    
+
     fn block_dominates(
         &self,
         dominator: BlockId,
@@ -353,7 +349,7 @@ impl IRReentrancyScanner {
     ) -> bool {
         dominator.0 < dominated.0
     }
-    
+
     fn create_finding_with_confidence(
         &self,
         contract: &Contract,
@@ -376,7 +372,8 @@ impl IRReentrancyScanner {
             state_mod.instruction_index,
         );
 
-        let has_multiple_evidence = self.external_calls.len() > 1 && self.state_modifications.len() > 1;
+        let has_multiple_evidence =
+            self.external_calls.len() > 1 && self.state_modifications.len() > 1;
         let confidence_score = self.confidence_scorer.score_reentrancy(
             has_multiple_evidence,
             safe_analysis,
@@ -483,7 +480,11 @@ impl IRReentrancyScanner {
             )
         } else {
             Location {
-                file: contract.metadata.source_file.clone().unwrap_or_else(|| format!("{}.sol", contract.name)),
+                file: contract
+                    .metadata
+                    .source_file
+                    .clone()
+                    .unwrap_or_else(|| format!("{}.sol", contract.name)),
                 line: 0,
                 column: 0,
                 end_line: None,
@@ -549,12 +550,8 @@ impl IRReentrancyScanner {
             confidence_score.explanation
         );
 
-        let location = super::provenance::get_instruction_location(
-            contract,
-            func_name,
-            call_block,
-            call_idx,
-        );
+        let location =
+            super::provenance::get_instruction_location(contract, func_name, call_block, call_idx);
 
         Finding::new(
             "conditional-reentrancy".to_string(),
@@ -609,15 +606,14 @@ impl IRReentrancyScanner {
         );
 
         let location = if let Some((block_id, inst_idx)) = pattern.calls_in_loop.first() {
-            super::provenance::get_instruction_location(
-                contract,
-                func_name,
-                *block_id,
-                *inst_idx,
-            )
+            super::provenance::get_instruction_location(contract, func_name, *block_id, *inst_idx)
         } else {
             Location {
-                file: contract.metadata.source_file.clone().unwrap_or_else(|| format!("{}.sol", contract.name)),
+                file: contract
+                    .metadata
+                    .source_file
+                    .clone()
+                    .unwrap_or_else(|| format!("{}.sol", contract.name)),
                 line: 0,
                 column: 0,
                 end_line: None,
@@ -652,18 +648,12 @@ impl IRReentrancyScanner {
         match &match_result.location {
             MatchLocation::Instruction { block, index } => {
                 let location = super::provenance::get_instruction_location(
-                    contract,
-                    func_name,
-                    *block,
-                    *index,
+                    contract, func_name, *block, *index,
                 );
 
-                let confidence_score = self.confidence_scorer.score_reentrancy(
-                    true,
-                    safe_analysis,
-                    false,
-                    func_name,
-                );
+                let confidence_score =
+                    self.confidence_scorer
+                        .score_reentrancy(true, safe_analysis, false, func_name);
 
                 let confidence = if confidence_score.score >= 0.8 {
                     Confidence::High
@@ -691,34 +681,34 @@ impl IRReentrancyScanner {
             _ => None,
         }
     }
-
 }
 
 impl Pass for IRReentrancyScanner {
     fn name(&self) -> &'static str {
         "ir-reentrancy"
     }
-    
+
     fn description(&self) -> &'static str {
         "Detect reentrancy vulnerabilities using IR analysis"
     }
-    
-    fn run_on_contract(&mut self, contract: &mut Contract, _manager: &mut PassManager) -> Result<()> {
+
+    fn run_on_contract(
+        &mut self,
+        contract: &mut Contract,
+        _manager: &mut PassManager,
+    ) -> Result<()> {
         let _findings = self.analyze(contract)?;
         Ok(())
     }
-    
+
     fn required_analyses(&self) -> Vec<AnalysisID> {
-        vec![
-            AnalysisID::ControlFlow,
-            AnalysisID::Dominator,
-        ]
+        vec![AnalysisID::ControlFlow, AnalysisID::Dominator]
     }
-    
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
@@ -775,13 +765,10 @@ mod tests {
 
         let mut contract_builder = builder.contract("TestContract");
 
-
-
         let contract = contract_builder.build().unwrap();
 
         let mut Scanner = IRReentrancyScanner::new();
         let findings = Scanner.analyze(&contract).unwrap();
-
     }
 
     #[test]
@@ -824,8 +811,8 @@ mod tests {
 
         println!("Using contract path: {}", contract_path);
 
-        let content = std::fs::read_to_string(contract_path)
-            .expect("Failed to read complex_patterns.sol");
+        let content =
+            std::fs::read_to_string(contract_path).expect("Failed to read complex_patterns.sol");
 
         let contracts = thalir_transform::transform_solidity_to_ir(&content)
             .expect("Failed to transform to IR");
@@ -839,13 +826,13 @@ mod tests {
             println!("\n--- Contract: {} ---", contract.name);
 
             let mut scanner = IRReentrancyScanner::new();
-            let findings = scanner.analyze(&contract)
-                .expect("Scanner analysis failed");
+            let findings = scanner.analyze(&contract).expect("Scanner analysis failed");
 
             println!("Found {} findings in {}", findings.len(), contract.name);
 
             for finding in &findings {
-                println!("  - [{}] {}: {}",
+                println!(
+                    "  - [{}] {}: {}",
                     finding.severity,
                     finding.title,
                     finding.description.chars().take(100).collect::<String>()

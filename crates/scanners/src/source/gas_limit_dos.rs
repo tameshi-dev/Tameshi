@@ -1,6 +1,5 @@
-
-use crate::core::{Scanner, Finding, Severity, Confidence, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
 use tree_sitter::{Node, TreeCursor};
 
@@ -28,30 +27,36 @@ impl SourceGasLimitDoSScanner {
     }
 
     fn has_expensive_operations(&self, body_text: &str) -> bool {
-        let has_storage_ops =
-            body_text.contains("+=") ||
-            body_text.contains("-=") ||
-            body_text.contains(" = ") ||
-            body_text.contains("push(") ||
-            body_text.contains("delete ");
+        let has_storage_ops = body_text.contains("+=")
+            || body_text.contains("-=")
+            || body_text.contains(" = ")
+            || body_text.contains("push(")
+            || body_text.contains("delete ");
 
-        let has_external_calls =
-            body_text.contains(".transfer(") ||
-            body_text.contains(".send(") ||
-            body_text.contains(".call{") ||
-            body_text.contains(".call(");
+        let has_external_calls = body_text.contains(".transfer(")
+            || body_text.contains(".send(")
+            || body_text.contains(".call{")
+            || body_text.contains(".call(");
 
         has_storage_ops || has_external_calls
     }
 
     fn is_dynamic_array(&self, array_name: &str, function_node: Node, source: &str) -> bool {
         let func_text = function_node.utf8_text(source.as_bytes()).unwrap_or("");
-        if func_text.contains(&format!("[] memory {}", array_name)) ||
-           func_text.contains(&format!("[] calldata {}", array_name)) {
+        if func_text.contains(&format!("[] memory {}", array_name))
+            || func_text.contains(&format!("[] calldata {}", array_name))
+        {
             return true;
         }
 
-        let dynamic_names = ["participants", "recipients", "addresses", "users", "investors", "voters"];
+        let dynamic_names = [
+            "participants",
+            "recipients",
+            "addresses",
+            "users",
+            "investors",
+            "voters",
+        ];
         dynamic_names.contains(&array_name)
     }
 
@@ -76,7 +81,15 @@ impl SourceGasLimitDoSScanner {
         };
 
         let mut cursor = body.walk();
-        self.find_for_loops(&mut cursor, source, function_node, function_name, contract_name, file_path, &mut findings);
+        self.find_for_loops(
+            &mut cursor,
+            source,
+            function_node,
+            function_name,
+            contract_name,
+            file_path,
+            &mut findings,
+        );
 
         findings
     }
@@ -102,8 +115,10 @@ impl SourceGasLimitDoSScanner {
                         if self.has_expensive_operations(body_text) {
                             let line = node.start_position().row + 1;
 
-                            let (severity, vuln_type, extra_desc) = if body_text.contains(".transfer(") ||
-                                                                       body_text.contains(".call{") {
+                            let (severity, vuln_type, extra_desc) = if body_text
+                                .contains(".transfer(")
+                                || body_text.contains(".call{")
+                            {
                                 (Severity::Critical,
                                  "gas-limit-dos-external-call",
                                  "with external calls in the loop. This is extremely dangerous as each call consumes significant gas")
@@ -161,7 +176,15 @@ impl SourceGasLimitDoSScanner {
 
         if cursor.goto_first_child() {
             loop {
-                self.find_for_loops(cursor, source, function_node, function_name, contract_name, file_path, findings);
+                self.find_for_loops(
+                    cursor,
+                    source,
+                    function_node,
+                    function_name,
+                    contract_name,
+                    file_path,
+                    findings,
+                );
                 if !cursor.goto_next_sibling() {
                     break;
                 }
@@ -201,13 +224,15 @@ impl Scanner for SourceGasLimitDoSScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
-        parser.set_language(&language)
+        parser
+            .set_language(&language)
             .expect("Failed to load Solidity grammar");
 
         let tree = match parser.parse(source, None) {
@@ -243,7 +268,9 @@ impl SourceGasLimitDoSScanner {
 
         if kind == "contract_declaration" {
             let current_contract = if let Some(name_node) = node.child_by_field_name("name") {
-                name_node.utf8_text(source.as_bytes()).unwrap_or(contract_name)
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or(contract_name)
             } else {
                 contract_name
             };

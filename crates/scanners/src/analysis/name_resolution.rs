@@ -4,7 +4,6 @@
 //! (e.g., "_updateBalance") but the function map contains mangled names
 //! with parameter types (e.g., "_updateBalance_address_uint256").
 
-
 pub fn canonical_match(base: &str, candidate: &str) -> bool {
     if base.is_empty() {
         return false;
@@ -20,7 +19,6 @@ pub fn canonical_match(base: &str, candidate: &str) -> bool {
 
     let suffix = &candidate[base.len()..];
 
-
     if suffix.is_empty() {
         return true;
     }
@@ -29,10 +27,8 @@ pub fn canonical_match(base: &str, candidate: &str) -> bool {
         return false;
     }
 
-
     suffix.chars().all(|c| c.is_alphanumeric() || c == '_')
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -46,7 +42,10 @@ mod tests {
 
     #[test]
     fn test_canonical_match_with_types() {
-        assert!(canonical_match("_updateBalance", "_updateBalance_address_uint256"));
+        assert!(canonical_match(
+            "_updateBalance",
+            "_updateBalance_address_uint256"
+        ));
         assert!(canonical_match("withdraw", "withdraw_uint256"));
         assert!(canonical_match("transfer", "transfer_address_uint256"));
         assert!(canonical_match("mint", "mint_address_uint256_bytes32"));
@@ -78,5 +77,4 @@ mod tests {
         assert!(canonical_match("func", "func_string"));
         assert!(canonical_match("func", "func_bool"));
     }
-
 }

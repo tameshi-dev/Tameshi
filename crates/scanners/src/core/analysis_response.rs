@@ -1,9 +1,9 @@
-use crate::core::{Finding, Severity, Confidence};
-use crate::core::correlation::{CorrelationResult, CorrelationGroup};
+use crate::core::correlation::{CorrelationGroup, CorrelationResult};
+use crate::core::{Confidence, Finding, Severity};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
-use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisResponse {
@@ -192,7 +192,6 @@ impl Default for AnalysisResponse {
         Self::new()
     }
 }
-
 
 impl Default for CorrelationStatistics {
     fn default() -> Self {

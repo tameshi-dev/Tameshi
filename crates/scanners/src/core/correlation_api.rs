@@ -4,15 +4,14 @@
 //! from different scanners, enabling cross-validation between deterministic
 //! and LLM-based approaches.
 
-use anyhow::Result;
 use crate::core::{
-    result::Finding,
     correlation::{CorrelationEngine, CorrelationResult},
+    result::Finding,
 };
+use anyhow::Result;
 
 pub fn correlate_findings(findings: Vec<Finding>) -> Result<CorrelationResult> {
-    let engine = CorrelationEngine::new()
-        .with_threshold(0.5); // 50% similarity threshold for better correlation
+    let engine = CorrelationEngine::new().with_threshold(0.5); // 50% similarity threshold for better correlation
 
     Ok(engine.correlate(findings))
 }
@@ -21,9 +20,7 @@ pub fn correlate_findings_with_config(
     findings: Vec<Finding>,
     config: CorrelationConfig,
 ) -> Result<CorrelationResult> {
-    let engine = CorrelationEngine::new()
-        .with_threshold(config.threshold);
-
+    let engine = CorrelationEngine::new().with_threshold(config.threshold);
 
     Ok(engine.correlate(findings))
 }
@@ -100,19 +97,24 @@ pub fn merge_correlated_findings(findings: Vec<Finding>) -> Result<Vec<Finding>>
                 if let Some(ref mut best_prov) = best_finding.provenance {
                     if let Some(ref other_prov) = finding.provenance {
                         for evidence in &other_prov.evidence {
-                            if !best_prov.evidence.iter().any(|e| e.content == evidence.content) {
+                            if !best_prov
+                                .evidence
+                                .iter()
+                                .any(|e| e.content == evidence.content)
+                            {
                                 best_prov.evidence.push(evidence.clone());
                             }
                         }
 
-                        best_prov.related_findings.push(
-                            crate::core::provenance::RelatedFinding {
+                        best_prov
+                            .related_findings
+                            .push(crate::core::provenance::RelatedFinding {
                                 finding_id: other_prov.finding_id.clone(),
-                                relationship: crate::core::provenance::FindingRelationship::SameVulnerability,
+                                relationship:
+                                    crate::core::provenance::FindingRelationship::SameVulnerability,
                                 correlation_strength: group.average_correlation(),
                                 shared_evidence: Vec::new(),
-                            }
-                        );
+                            });
                     }
                 }
 

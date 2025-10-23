@@ -29,11 +29,18 @@ impl RawSolidityExtractor {
             let line_num = i + 1;
             let trimmed = line.trim();
 
-            let marked_line = if trimmed.contains(".call{") || trimmed.contains(".call(")
-                || trimmed.contains("msg.sender.call") || (trimmed.contains("address(") && trimmed.contains(".call")) {
+            let marked_line = if trimmed.contains(".call{")
+                || trimmed.contains(".call(")
+                || trimmed.contains("msg.sender.call")
+                || (trimmed.contains("address(") && trimmed.contains(".call"))
+            {
                 format!("{:4} | {} 🔴 // EXTERNAL CALL", line_num, line)
             } else if trimmed.starts_with("balances[") || trimmed.contains(" balances[") {
-                if trimmed.contains("=") && !trimmed.contains("==") && !trimmed.contains(">=") && !trimmed.contains("<=") {
+                if trimmed.contains("=")
+                    && !trimmed.contains("==")
+                    && !trimmed.contains(">=")
+                    && !trimmed.contains("<=")
+                {
                     format!("{:4} | {} 🟡 // STATE WRITE", line_num, line)
                 } else {
                     format!("{:4} | {}", line_num, line)

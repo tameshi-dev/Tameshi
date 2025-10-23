@@ -3,11 +3,11 @@
 //! This scanner analyzes Solidity source code using tree-sitter queries to detect
 //! time-based vulnerabilities that are lost in IR optimization.
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
-use tree_sitter::{Parser, Query, QueryCursor, Node};
 use streaming_iterator::StreamingIterator;
+use tree_sitter::{Node, Parser, Query, QueryCursor};
 
 pub struct SourceTimeVulnerabilitiesScanner;
 
@@ -16,12 +16,18 @@ impl SourceTimeVulnerabilitiesScanner {
         Self
     }
 
-    fn analyze_ast(&self, source: &str, contract_name: &str, file_path: &str) -> Result<Vec<Finding>> {
+    fn analyze_ast(
+        &self,
+        source: &str,
+        contract_name: &str,
+        file_path: &str,
+    ) -> Result<Vec<Finding>> {
         let mut parser = Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
         parser.set_language(&language)?;
 
-        let tree = parser.parse(source, None)
+        let tree = parser
+            .parse(source, None)
             .ok_or_else(|| anyhow::anyhow!("Failed to parse source"))?;
 
         let root = tree.root_node();
@@ -84,14 +90,16 @@ impl SourceTimeVulnerabilitiesScanner {
                 let call_node = capture.node;
                 let call_text = &source[call_node.byte_range()];
 
-                if (call_text.starts_with("keccak256") || call_text.starts_with("sha256") || call_text.starts_with("sha3")) &&
-                   (call_text.contains("block.timestamp") || call_text.contains("now")) {
-
+                if (call_text.starts_with("keccak256")
+                    || call_text.starts_with("sha256")
+                    || call_text.starts_with("sha3"))
+                    && (call_text.contains("block.timestamp") || call_text.contains("now"))
+                {
                     let func_name = self.get_function_name(&call_node, source);
-                    let is_random = func_name.to_lowercase().contains("random") ||
-                                   func_name.to_lowercase().contains("lottery") ||
-                                   func_name.to_lowercase().contains("winner") ||
-                                   func_name.to_lowercase().contains("shuffle");
+                    let is_random = func_name.to_lowercase().contains("random")
+                        || func_name.to_lowercase().contains("lottery")
+                        || func_name.to_lowercase().contains("winner")
+                        || func_name.to_lowercase().contains("shuffle");
 
                     if is_random {
                         let start_pos = call_node.start_position();
@@ -129,10 +137,10 @@ impl SourceTimeVulnerabilitiesScanner {
         for (node, text) in &block_vars {
             if text == "block.number" {
                 let func_name = self.get_function_name(node, source);
-                let is_random = func_name.to_lowercase().contains("random") ||
-                               func_name.to_lowercase().contains("lottery") ||
-                               func_name.to_lowercase().contains("winner") ||
-                               func_name.to_lowercase().contains("shuffle");
+                let is_random = func_name.to_lowercase().contains("random")
+                    || func_name.to_lowercase().contains("lottery")
+                    || func_name.to_lowercase().contains("winner")
+                    || func_name.to_lowercase().contains("shuffle");
 
                 if is_random {
                     let start_pos = node.start_position();
@@ -171,8 +179,10 @@ impl SourceTimeVulnerabilitiesScanner {
 
                 while let Some(parent) = context_node {
                     let kind = parent.kind();
-                    if kind.contains("statement") ||
-                       kind == "assignment_expression" || kind == "return_statement" {
+                    if kind.contains("statement")
+                        || kind == "assignment_expression"
+                        || kind == "return_statement"
+                    {
                         found_statement = Some(parent);
                         break;
                     }
@@ -183,27 +193,35 @@ impl SourceTimeVulnerabilitiesScanner {
                     let context_text = source[stmt.byte_range()].lines().next().unwrap_or("");
 
                     let is_modulo = context_text.contains('%');
-                    let is_comparison = context_text.contains("==") || context_text.contains("!=") ||
-                                       context_text.contains('<') || context_text.contains('>');
-                    let is_arithmetic = context_text.contains('+') || context_text.contains('-') ||
-                                       context_text.contains('*') || context_text.contains('/') ||
-                                       context_text.contains('%');
+                    let is_comparison = context_text.contains("==")
+                        || context_text.contains("!=")
+                        || context_text.contains('<')
+                        || context_text.contains('>');
+                    let is_arithmetic = context_text.contains('+')
+                        || context_text.contains('-')
+                        || context_text.contains('*')
+                        || context_text.contains('/')
+                        || context_text.contains('%');
 
-                    let is_safe_timelock = (func_name.to_lowercase().contains("withdraw") ||
-                                           func_name.to_lowercase().contains("claim") ||
-                                           func_name.to_lowercase().contains("unlock")) &&
-                                          (context_text.contains(" > ") || context_text.contains(" >= ")) &&
-                                          (context_text.contains("require") || context_text.contains("revert"));
+                    let is_safe_timelock = (func_name.to_lowercase().contains("withdraw")
+                        || func_name.to_lowercase().contains("claim")
+                        || func_name.to_lowercase().contains("unlock"))
+                        && (context_text.contains(" > ") || context_text.contains(" >= "))
+                        && (context_text.contains("require") || context_text.contains("revert"));
 
-                    let is_safe_assignment = context_text.contains("=") && !is_comparison &&
-                                            !context_text.contains("if ") &&
-                                            !context_text.contains("return ");
+                    let is_safe_assignment = context_text.contains("=")
+                        && !is_comparison
+                        && !context_text.contains("if ")
+                        && !context_text.contains("return ");
 
-                    if (is_modulo || is_comparison || is_arithmetic) && !is_safe_timelock && !is_safe_assignment {
+                    if (is_modulo || is_comparison || is_arithmetic)
+                        && !is_safe_timelock
+                        && !is_safe_assignment
+                    {
                         let severity = if is_modulo {
-                            Severity::High  // Modulo with timestamp is very likely randomness
+                            Severity::High // Modulo with timestamp is very likely randomness
                         } else {
-                            Severity::Medium  // Other risky timestamp usage
+                            Severity::Medium // Other risky timestamp usage
                         };
 
                         let start_pos = node.start_position();
@@ -243,7 +261,7 @@ impl SourceTimeVulnerabilitiesScanner {
                                 end_column: Some(node.end_position().column),
                                 snippet: Some(context_text.trim().to_string()),
                                 ir_position: None,
-                            })
+                            }),
                         );
                     }
                 }
@@ -305,7 +323,10 @@ impl Scanner for SourceTimeVulnerabilitiesScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path.as_deref().unwrap_or("unknown.sol");
+        let file_path = contract_info
+            .source_path
+            .as_deref()
+            .unwrap_or("unknown.sol");
 
         self.analyze_ast(source, contract_name, file_path)
     }

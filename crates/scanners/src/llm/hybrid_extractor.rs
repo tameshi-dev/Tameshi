@@ -1,9 +1,8 @@
-
-use anyhow::Result;
 use super::representation::{
-    RepresentationConfig, RepresentationExtractor, RepresentationSnippet,
-    SnippetMetadata, TokenEstimator,
+    RepresentationConfig, RepresentationExtractor, RepresentationSnippet, SnippetMetadata,
+    TokenEstimator,
 };
+use anyhow::Result;
 use std::fmt::Write;
 
 #[derive(Debug)]
@@ -49,7 +48,10 @@ impl HybridExtractor {
 }
 
 impl RepresentationExtractor for HybridExtractor {
-    fn extract(&self, _context: &crate::core::context::AnalysisContext) -> Result<RepresentationSnippet> {
+    fn extract(
+        &self,
+        _context: &crate::core::context::AnalysisContext,
+    ) -> Result<RepresentationSnippet> {
         Ok(RepresentationSnippet {
             content: "Hybrid extractor requires specific source and IR inputs".to_string(),
             token_count: 10,

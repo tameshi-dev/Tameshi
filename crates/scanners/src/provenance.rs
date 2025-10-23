@@ -3,8 +3,8 @@
 //! This module provides common functionality for extracting source locations
 //! and snippets from IR instructions across all scanners.
 
-use thalir_core::Contract;
 use crate::core::Location;
+use thalir_core::Contract;
 
 pub fn get_instruction_location(
     contract: &Contract,
@@ -40,7 +40,11 @@ pub fn get_instruction_location(
     }
 
     Location {
-        file: contract.metadata.source_file.clone().unwrap_or_else(|| format!("{}.sol", contract.name)),
+        file: contract
+            .metadata
+            .source_file
+            .clone()
+            .unwrap_or_else(|| format!("{}.sol", contract.name)),
         line: instruction_index,
         column: 0,
         end_line: None,

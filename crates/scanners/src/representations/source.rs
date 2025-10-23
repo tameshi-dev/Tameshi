@@ -10,8 +10,8 @@
 
 use anyhow::Result;
 use std::collections::HashMap;
-use tree_sitter::{Node, Parser, Query, QueryCursor};
 use streaming_iterator::StreamingIterator;
+use tree_sitter::{Node, Parser, Query, QueryCursor};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceLocation {
@@ -63,7 +63,7 @@ pub struct LoopInfo {
     pub contains_external_calls: bool,
     pub contains_storage_writes: bool,
     pub iterates_over_length: bool,
-    pub function_name: String,  // Which function this loop belongs to
+    pub function_name: String, // Which function this loop belongs to
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -182,12 +182,10 @@ impl SourceRepresentation {
     }
 
     pub fn has_assignments_after_loop(&self, loop_info: &LoopInfo) -> bool {
-        self.assignments
-            .iter()
-            .any(|a| {
-                a.function_name == loop_info.function_name
-                    && a.location.line > loop_info.location.end_line
-            })
+        self.assignments.iter().any(|a| {
+            a.function_name == loop_info.function_name
+                && a.location.line > loop_info.location.end_line
+        })
     }
 }
 
@@ -234,7 +232,7 @@ struct SourceExtractor<'a> {
     external_calls: Vec<ExternalCallInfo>,
     assignments: Vec<AssignmentInfo>,
     modifiers: HashMap<String, ModifierInfo>,
-    current_function_name: Option<String>,  // Track current function context
+    current_function_name: Option<String>, // Track current function context
 }
 
 impl<'a> SourceExtractor<'a> {
@@ -243,7 +241,10 @@ impl<'a> SourceExtractor<'a> {
             let mut cursor = root.walk();
             let mut found_range = None;
             for child in root.children(&mut cursor) {
-                if matches!(child.kind(), "contract_declaration" | "library_declaration" | "interface_declaration") {
+                if matches!(
+                    child.kind(),
+                    "contract_declaration" | "library_declaration" | "interface_declaration"
+                ) {
                     if let Some(name_node) = child.child_by_field_name("name") {
                         let name = &self.source[name_node.byte_range()];
                         if name == self.contract_name {
@@ -253,7 +254,8 @@ impl<'a> SourceExtractor<'a> {
                     }
                 }
             }
-            found_range.ok_or_else(|| anyhow::anyhow!("Contract {} not found", self.contract_name))?
+            found_range
+                .ok_or_else(|| anyhow::anyhow!("Contract {} not found", self.contract_name))?
         };
 
         let mut cursor = root.walk();
@@ -353,8 +355,10 @@ impl<'a> SourceExtractor<'a> {
                 let visibility = self.extract_visibility(&function_node);
                 let state_mutability = self.extract_state_mutability(&function_node);
 
-                let parameters = self.extract_parameters_from_function(&function_node, "parameters")?;
-                let returns = self.extract_parameters_from_function(&function_node, "return_parameters")?;
+                let parameters =
+                    self.extract_parameters_from_function(&function_node, "parameters")?;
+                let returns =
+                    self.extract_parameters_from_function(&function_node, "return_parameters")?;
 
                 self.current_function_name = Some(name.clone());
 
@@ -413,7 +417,11 @@ impl<'a> SourceExtractor<'a> {
         modifiers
     }
 
-    fn extract_parameters_from_function(&self, function_node: &Node, field_name: &str) -> Result<Vec<Parameter>> {
+    fn extract_parameters_from_function(
+        &self,
+        function_node: &Node,
+        field_name: &str,
+    ) -> Result<Vec<Parameter>> {
         let mut params = Vec::new();
         if let Some(params_node) = function_node.child_by_field_name(field_name) {
             let mut cursor = params_node.walk();
@@ -439,10 +447,7 @@ impl<'a> SourceExtractor<'a> {
     fn extract_visibility(&self, node: &Node) -> String {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            if matches!(
-                child.kind(),
-                "public" | "private" | "internal" | "external"
-            ) {
+            if matches!(child.kind(), "public" | "private" | "internal" | "external") {
                 return self.source[child.byte_range()].to_string();
             }
 
@@ -499,14 +504,17 @@ impl<'a> SourceExtractor<'a> {
 
                 let contains_external_calls = self.contains_external_call(&loop_node);
                 let contains_storage_writes = self.contains_storage_write(&loop_node);
-                let iterates_over_length = condition.contains(".length") || body.contains(".length");
+                let iterates_over_length =
+                    condition.contains(".length") || body.contains(".length");
 
                 #[cfg(test)]
-                eprintln!("Loop at line {}: external_calls={}, storage_writes={}, length={}",
-                          loop_node.start_position().row + 1,
-                          contains_external_calls,
-                          contains_storage_writes,
-                          iterates_over_length);
+                eprintln!(
+                    "Loop at line {}: external_calls={}, storage_writes={}, length={}",
+                    loop_node.start_position().row + 1,
+                    contains_external_calls,
+                    contains_storage_writes,
+                    iterates_over_length
+                );
 
                 let loop_info = LoopInfo {
                     location: SourceLocation::from_node(self.file_path, &loop_node),
@@ -560,7 +568,7 @@ impl<'a> SourceExtractor<'a> {
                                 } else {
                                     ExternalCallType::Transfer
                                 }
-                            },
+                            }
                             "send" => ExternalCallType::Send,
                             "transferFrom" => ExternalCallType::ERC20TransferFrom,
                             _ => {
@@ -612,7 +620,9 @@ impl<'a> SourceExtractor<'a> {
                 }
             }
 
-            if let (Some(assign_node), Some(left), Some(right)) = (assignment_node, left_node, right_node) {
+            if let (Some(assign_node), Some(left), Some(right)) =
+                (assignment_node, left_node, right_node)
+            {
                 let left_text = self.source[left.byte_range()].to_string();
                 let right_text = self.source[right.byte_range()].to_string();
 
@@ -623,10 +633,12 @@ impl<'a> SourceExtractor<'a> {
                 };
 
                 #[cfg(test)]
-                eprintln!("  Found assignment: {} = {}, left kind: {}",
-                         &left_text[..std::cmp::min(30, left_text.len())],
-                         &right_text[..std::cmp::min(20, right_text.len())],
-                         actual_left.kind());
+                eprintln!(
+                    "  Found assignment: {} = {}, left kind: {}",
+                    &left_text[..std::cmp::min(30, left_text.len())],
+                    &right_text[..std::cmp::min(20, right_text.len())],
+                    actual_left.kind()
+                );
 
                 let should_track = matches!(
                     actual_left.kind(),
@@ -642,9 +654,10 @@ impl<'a> SourceExtractor<'a> {
                     };
 
                     #[cfg(test)]
-                    eprintln!("    Tracking assignment in function '{}' at line {}",
-                             assignment_info.function_name,
-                             assignment_info.location.line);
+                    eprintln!(
+                        "    Tracking assignment in function '{}' at line {}",
+                        assignment_info.function_name, assignment_info.location.line
+                    );
 
                     self.assignments.push(assignment_info);
                 }
@@ -669,14 +682,16 @@ impl<'a> SourceExtractor<'a> {
 
             if (parent_kind == "variable_declaration" || parent_kind == "assignment_expression")
                 && (parent_text.contains("bool")
-                    || parent_text.contains("(") && parent_text.contains("success")) {
+                    || parent_text.contains("(") && parent_text.contains("success"))
+            {
                 return Ok(true);
             }
 
             if parent_text.contains("require(")
                 || parent_text.contains("assert(")
                 || parent_text.starts_with("if ")
-                || parent_text.contains("\nif ") {
+                || parent_text.contains("\nif ")
+            {
                 return Ok(true);
             }
 
@@ -743,7 +758,10 @@ impl<'a> SourceExtractor<'a> {
                             #[cfg(test)]
                             eprintln!("  Found external call method: {}", method_name);
 
-                            if matches!(method_name.as_str(), "call" | "delegatecall" | "transfer" | "send" | "staticcall") {
+                            if matches!(
+                                method_name.as_str(),
+                                "call" | "delegatecall" | "transfer" | "send" | "staticcall"
+                            ) {
                                 found = true;
                             }
                         }
@@ -754,7 +772,10 @@ impl<'a> SourceExtractor<'a> {
         }
 
         #[cfg(test)]
-        eprintln!("  Total call_expressions found: {}, is external: {}", call_count, found);
+        eprintln!(
+            "  Total call_expressions found: {}, is external: {}",
+            call_count, found
+        );
 
         found
     }
@@ -773,7 +794,11 @@ impl<'a> SourceExtractor<'a> {
                 let capture_name = &query.capture_names()[capture.index as usize];
                 if *capture_name == "left" {
                     #[cfg(test)]
-                    eprintln!("  Found assignment left: {}", &self.source[capture.node.byte_range()][..std::cmp::min(30, self.source[capture.node.byte_range()].len())]);
+                    eprintln!(
+                        "  Found assignment left: {}",
+                        &self.source[capture.node.byte_range()]
+                            [..std::cmp::min(30, self.source[capture.node.byte_range()].len())]
+                    );
 
                     let left_node = capture.node;
 
@@ -787,7 +812,8 @@ impl<'a> SourceExtractor<'a> {
                     eprintln!("    left node kind: {}", actual_left_node.kind());
 
                     match actual_left_node.kind() {
-                        "identifier" | "member_expression" | "index_expression" | "array_access" => {
+                        "identifier" | "member_expression" | "index_expression"
+                        | "array_access" => {
                             count += 1;
                         }
                         _ => {}

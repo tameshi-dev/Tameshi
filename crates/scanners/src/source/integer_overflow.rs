@@ -8,12 +8,12 @@
 //! 2. Multiplication before division (optimized away in IR)
 //! 3. Accumulation in loops (flattened in IR)
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use crate::representations::source::SourceRepresentation;
 use anyhow::Result;
-use tree_sitter::{Query, QueryCursor};
 use streaming_iterator::StreamingIterator;
+use tree_sitter::{Query, QueryCursor};
 
 pub struct SourceIntegerOverflowScanner;
 
@@ -52,10 +52,14 @@ impl SourceIntegerOverflowScanner {
 
             if let Some(tree) = parser.parse(&wrapped_code, None) {
                 #[cfg(test)]
-                eprintln!("Parsed loop body, has errors: {}", tree.root_node().has_error());
+                eprintln!(
+                    "Parsed loop body, has errors: {}",
+                    tree.root_node().has_error()
+                );
 
                 let mut cursor = QueryCursor::new();
-                let mut matches = cursor.matches(&mul_query, tree.root_node(), wrapped_code.as_bytes());
+                let mut matches =
+                    cursor.matches(&mul_query, tree.root_node(), wrapped_code.as_bytes());
 
                 let mut found_mul = false;
                 matches.advance();
@@ -132,10 +136,14 @@ impl SourceIntegerOverflowScanner {
 
             if let Some(tree) = parser.parse(&wrapped_code, None) {
                 let mut cursor = QueryCursor::new();
-                let mut matches = cursor.matches(&mul_div_query, tree.root_node(), wrapped_code.as_bytes());
+                let mut matches =
+                    cursor.matches(&mul_div_query, tree.root_node(), wrapped_code.as_bytes());
 
                 #[cfg(test)]
-                eprintln!("Parsed function body, has errors: {}", tree.root_node().has_error());
+                eprintln!(
+                    "Parsed function body, has errors: {}",
+                    tree.root_node().has_error()
+                );
 
                 matches.advance();
                 while let Some(match_) = matches.get() {
@@ -156,7 +164,9 @@ impl SourceIntegerOverflowScanner {
                                 eprintln!("Found division");
                                 if let Some(left_node) = node.child_by_field_name("left") {
                                     let mut actual_left = left_node;
-                                    while let "expression" | "parenthesized_expression" = actual_left.kind() {
+                                    while let "expression" | "parenthesized_expression" =
+                                        actual_left.kind()
+                                    {
                                         let mut found = false;
                                         let mut cursor = actual_left.walk();
                                         for child in actual_left.children(&mut cursor) {
@@ -175,12 +185,14 @@ impl SourceIntegerOverflowScanner {
                                     eprintln!("Left operand kind: {}", actual_left.kind());
 
                                     if actual_left.kind() == "binary_expression" {
-                                        if let Some(left_op_node) = actual_left.child_by_field_name("operator") {
+                                        if let Some(left_op_node) =
+                                            actual_left.child_by_field_name("operator")
+                                        {
                                             let left_op = &wrapped_code[left_op_node.byte_range()];
                                             if left_op == "*" {
                                                 let snippet = &wrapped_code[node.byte_range()];
 
-                        findings.push(
+                                                findings.push(
                             Finding::new(
                                 "source-integer-overflow-mul-div".to_string(),
                                 Severity::Medium,
@@ -223,7 +235,10 @@ impl SourceIntegerOverflowScanner {
         Ok(findings)
     }
 
-    fn check_accumulation_in_loops(&self, source_repr: &SourceRepresentation) -> Result<Vec<Finding>> {
+    fn check_accumulation_in_loops(
+        &self,
+        source_repr: &SourceRepresentation,
+    ) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
 
@@ -241,7 +256,11 @@ impl SourceIntegerOverflowScanner {
 
             if let Some(tree) = parser.parse(&wrapped_code, None) {
                 let mut cursor = QueryCursor::new();
-                let mut matches = cursor.matches(&accumulation_query, tree.root_node(), wrapped_code.as_bytes());
+                let mut matches = cursor.matches(
+                    &accumulation_query,
+                    tree.root_node(),
+                    wrapped_code.as_bytes(),
+                );
 
                 let mut found_accumulation = false;
                 matches.advance();
@@ -281,7 +300,9 @@ impl SourceIntegerOverflowScanner {
                                 if actual_left.kind() == "identifier" {
                                     let var_name = &wrapped_code[actual_left.byte_range()];
 
-                                    if var_name.len() == 1 && var_name.chars().next().unwrap().is_ascii_lowercase() {
+                                    if var_name.len() == 1
+                                        && var_name.chars().next().unwrap().is_ascii_lowercase()
+                                    {
                                         matches.advance();
                                         continue;
                                     }
@@ -363,7 +384,9 @@ impl Scanner for SourceIntegerOverflowScanner {
     }
 
     fn scan(&self, context: &AnalysisContext) -> Result<Vec<Finding>> {
-        if let Some(version) = context.get_metadata::<crate::analysis::SolidityVersion>("solidity_version") {
+        if let Some(version) =
+            context.get_metadata::<crate::analysis::SolidityVersion>("solidity_version")
+        {
             if version.has_builtin_overflow_protection() {
                 return Ok(Vec::new());
             }
@@ -377,7 +400,8 @@ impl Scanner for SourceIntegerOverflowScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
@@ -424,7 +448,9 @@ mod tests {
         let scanner = SourceIntegerOverflowScanner::new();
         let findings = scanner.scan(&context).unwrap();
 
-        assert!(findings.iter().any(|f| f.scanner_id == "source-integer-overflow-mul-loop"));
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "source-integer-overflow-mul-loop"));
     }
 
     #[test]
@@ -453,7 +479,9 @@ mod tests {
         let scanner = SourceIntegerOverflowScanner::new();
         let findings = scanner.scan(&context).unwrap();
 
-        assert!(findings.iter().any(|f| f.scanner_id == "source-integer-overflow-mul-div"));
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "source-integer-overflow-mul-div"));
     }
 
     #[test]
@@ -486,6 +514,8 @@ mod tests {
         let scanner = SourceIntegerOverflowScanner::new();
         let findings = scanner.scan(&context).unwrap();
 
-        assert!(findings.iter().any(|f| f.scanner_id == "source-integer-overflow-accumulation-loop"));
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "source-integer-overflow-accumulation-loop"));
     }
 }

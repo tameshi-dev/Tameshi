@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::fmt::Write;
 use thalir_core::{
     block::{BasicBlock, Terminator},
     contract::Contract as IRContract,
@@ -7,7 +8,6 @@ use thalir_core::{
     values::Value,
     Function,
 };
-use std::fmt::Write;
 
 use super::representation::{
     RepresentationConfig, RepresentationExtractor, RepresentationSnippet, SnippetMetadata,
@@ -422,4 +422,3 @@ impl RepresentationExtractor for IRExtractor {
         "cranelift_ir"
     }
 }
-

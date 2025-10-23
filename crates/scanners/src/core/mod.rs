@@ -10,15 +10,15 @@
 
 pub mod composition;
 pub mod context;
-pub mod scanner;
-pub mod interfaces;
-pub mod result;
-pub mod severity;
-pub mod severity_calculator;
-pub mod provenance;
 pub mod correlation;
 pub mod correlation_api;
 pub mod fingerprint;
+pub mod interfaces;
+pub mod provenance;
+pub mod result;
+pub mod scanner;
+pub mod severity;
+pub mod severity_calculator;
 
 pub mod analysis_engine;
 pub mod analysis_request;
@@ -27,32 +27,27 @@ pub mod report_generator;
 
 pub use composition::{CompositeScanner, FilteredScanner, ParallelScanner, SequentialScanner};
 pub use context::{AnalysisContext, ContractInfo, ScannerConfig};
-pub use scanner::{Scanner};
-pub use interfaces::{InheritanceProvider};
-pub use result::{Finding, Location, IRPosition};
-pub use severity::{Confidence, Severity};
-pub use severity_calculator::SeverityCalculator;
-pub use provenance::{FindingProvenance, ProvenanceSource, Evidence, EvidenceType};
-pub use correlation::{CorrelationEngine, CorrelationResult, CorrelationGroup};
-pub use fingerprint::{FindingFingerprint, DeduplicationStats};
+pub use correlation::{CorrelationEngine, CorrelationGroup, CorrelationResult};
 pub use correlation_api::{
-    correlate_findings,
-    correlate_findings_with_config,
-    get_cross_validated_findings,
-    generate_correlation_report,
-    merge_correlated_findings,
-    CorrelationConfig,
+    correlate_findings, correlate_findings_with_config, generate_correlation_report,
+    get_cross_validated_findings, merge_correlated_findings, CorrelationConfig,
     CorrelationStrategy,
 };
+pub use fingerprint::{DeduplicationStats, FindingFingerprint};
+pub use interfaces::InheritanceProvider;
+pub use provenance::{Evidence, EvidenceType, FindingProvenance, ProvenanceSource};
+pub use result::{Finding, IRPosition, Location};
+pub use scanner::Scanner;
+pub use severity::{Confidence, Severity};
+pub use severity_calculator::SeverityCalculator;
 
 pub use analysis_engine::AnalysisEngine;
 pub use analysis_request::{
-    AnalysisRequest, AnalysisSource, AnalysisConfig,
-    ScannerSelection, LLMConfig, OutputFormat, Verbosity,
+    AnalysisConfig, AnalysisRequest, AnalysisSource, LLMConfig, OutputFormat, ScannerSelection,
+    Verbosity,
 };
 pub use analysis_response::{
-    AnalysisResponse, AnalysisSummary, CorrelationStatistics,
-    CrossValidationResult, CrossValidatedFinding, PerformanceMetrics,
-    SourceInfo,
+    AnalysisResponse, AnalysisSummary, CorrelationStatistics, CrossValidatedFinding,
+    CrossValidationResult, PerformanceMetrics, SourceInfo,
 };
 pub use report_generator::ReportGenerator;

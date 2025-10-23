@@ -5,9 +5,9 @@ use std::sync::Arc;
 
 use crate::{
     core::{
-        scanner::Scanner,
         context::AnalysisContext,
         result::Finding,
+        scanner::Scanner,
         severity::{Confidence, Severity},
     },
     llm::provider::{LLMProvider, LLMRequest},
@@ -76,11 +76,21 @@ impl LLMComprehensiveScanner {
         self
     }
 
-    pub async fn analyze_source(&self, source_code: &str, contract_name: &str) -> Result<Vec<Finding>> {
+    pub async fn analyze_source(
+        &self,
+        source_code: &str,
+        contract_name: &str,
+    ) -> Result<Vec<Finding>> {
         Self::debug_log("\n🔬 analyze_source() called (COMPREHENSIVE)");
         Self::debug_log(&format!("   Contract: {}", contract_name));
-        Self::debug_log(&format!("   Source code length: {} bytes", source_code.len()));
-        Self::debug_log(&format!("   Source code lines: {}", source_code.lines().count()));
+        Self::debug_log(&format!(
+            "   Source code length: {} bytes",
+            source_code.len()
+        ));
+        Self::debug_log(&format!(
+            "   Source code lines: {}",
+            source_code.lines().count()
+        ));
         Self::debug_log("   First 500 chars of source:");
         Self::debug_log(&source_code.chars().take(500).collect::<String>());
 
@@ -101,15 +111,25 @@ impl LLMComprehensiveScanner {
             dump_prompt: self.dump_prompt,
         };
 
-        let llm_response = self.provider.analyze(request).await
+        let llm_response = self
+            .provider
+            .analyze(request)
+            .await
             .map_err(|e| anyhow::anyhow!("LLM analysis failed: {}", e))?;
 
         if self.dump_response {
-            println!("\n📤 {} LLM RESPONSE DUMP {}", "=".repeat(25), "=".repeat(25));
+            println!(
+                "\n📤 {} LLM RESPONSE DUMP {}",
+                "=".repeat(25),
+                "=".repeat(25)
+            );
             println!("🤖 Model: {}", llm_response.model);
             println!("📊 Token Usage:");
             println!("   Prompt tokens: {}", llm_response.usage.prompt_tokens);
-            println!("   Completion tokens: {}", llm_response.usage.completion_tokens);
+            println!(
+                "   Completion tokens: {}",
+                llm_response.usage.completion_tokens
+            );
             println!("   Total tokens: {}", llm_response.usage.total_tokens);
             println!("\n📝 {} RAW RESPONSE {}", "=".repeat(22), "=".repeat(22));
             println!("{}", llm_response.content);
@@ -121,11 +141,23 @@ impl LLMComprehensiveScanner {
         let response: ComprehensiveResponse = serde_json::from_str(&llm_response.content)
             .map_err(|e| anyhow::anyhow!("Failed to parse LLM response: {}", e))?;
 
-        Self::debug_log(&format!("   Found {} vulnerabilities in response", response.vulnerabilities.len()));
+        Self::debug_log(&format!(
+            "   Found {} vulnerabilities in response",
+            response.vulnerabilities.len()
+        ));
         for (idx, vuln) in response.vulnerabilities.iter().enumerate() {
-            Self::debug_log(&format!("   Vuln {}: {} ({}) in function '{}'", idx, vuln.vuln_type, vuln.category, vuln.function_name));
-            Self::debug_log(&format!("      Line numbers from LLM: {:?}", vuln.line_numbers));
-            Self::debug_log(&format!("      Description: {}", vuln.description.chars().take(100).collect::<String>()));
+            Self::debug_log(&format!(
+                "   Vuln {}: {} ({}) in function '{}'",
+                idx, vuln.vuln_type, vuln.category, vuln.function_name
+            ));
+            Self::debug_log(&format!(
+                "      Line numbers from LLM: {:?}",
+                vuln.line_numbers
+            ));
+            Self::debug_log(&format!(
+                "      Description: {}",
+                vuln.description.chars().take(100).collect::<String>()
+            ));
         }
 
         self.convert_to_findings(&response, contract_name)
@@ -319,7 +351,10 @@ IMPORTANT:
                 vuln.recommendation
             );
 
-            let title = format!("{} - {} in {}", vuln.severity, vuln.vuln_type, vuln.function_name);
+            let title = format!(
+                "{} - {} in {}",
+                vuln.severity, vuln.vuln_type, vuln.function_name
+            );
 
             let mut finding = Finding::new(
                 "llm_comprehensive".to_string(),
@@ -335,8 +370,12 @@ IMPORTANT:
             metadata.recommendation = Some(vuln.recommendation.clone());
             finding.metadata = Some(metadata);
 
-            Self::debug_log(&format!("   ➕ Adding {} locations to finding for function '{}' ({})",
-                vuln.line_numbers.len(), vuln.function_name, vuln.category));
+            Self::debug_log(&format!(
+                "   ➕ Adding {} locations to finding for function '{}' ({})",
+                vuln.line_numbers.len(),
+                vuln.function_name,
+                vuln.category
+            ));
             for line_num in &vuln.line_numbers {
                 Self::debug_log(&format!("      📌 Adding location at line {}", line_num));
                 finding = finding.with_location_parts("", *line_num, 0);
@@ -374,11 +413,11 @@ impl Scanner for LLMComprehensiveScanner {
     fn scan(&self, context: &AnalysisContext) -> Result<Vec<Finding>> {
         Self::debug_log("📞 LLMComprehensiveScanner::scan() called");
 
-        let source_code = context.source_code()
+        let source_code = context
+            .source_code()
             .ok_or_else(|| anyhow::anyhow!("No source code available for analysis"))?;
 
-        let contract_name = context.contract_name()
-            .unwrap_or("Unknown");
+        let contract_name = context.contract_name().unwrap_or("Unknown");
 
         Self::debug_log(&format!("   Contract: {}", contract_name));
         Self::debug_log(&format!("   Source length: {} bytes", source_code.len()));

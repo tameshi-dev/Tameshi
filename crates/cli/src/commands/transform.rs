@@ -106,10 +106,7 @@ fn transform_sol_to_cranelift_ir(args: &TransformArgs) -> Result<()> {
     use thalir_transform::transform_solidity_to_ir;
 
     if !args.stdout && args.verbose {
-        println!(
-            "{}",
-            "🔄 Transforming Solidity to ThalIR...".cyan().bold()
-        );
+        println!("{}", "🔄 Transforming Solidity to ThalIR...".cyan().bold());
     }
 
     if let Some(ref dir) = args.dir {
@@ -276,13 +273,12 @@ fn transform_sol_to_cranelift_ir(args: &TransformArgs) -> Result<()> {
             ));
         }
         let extension = input_path.extension().and_then(|ext| ext.to_str());
-        if extension != Some("sol")
-            && !args.stdin {
-                eprintln!(
-                    "⚠️  Warning: Input file does not have .sol extension: {}",
-                    input_path.display()
-                );
-            }
+        if extension != Some("sol") && !args.stdin {
+            eprintln!(
+                "⚠️  Warning: Input file does not have .sol extension: {}",
+                input_path.display()
+            );
+        }
     }
 
     let input = read_input(args)?;
@@ -301,8 +297,15 @@ fn transform_sol_to_cranelift_ir(args: &TransformArgs) -> Result<()> {
         eprintln!("⚠️  Warning: No contracts found in input");
     }
 
-    let output = format_ir_output(&contracts, &args.format, args.pretty, args.with_types, args.annotated, args.ascii_markers)
-        .context("Failed to format IR output")?;
+    let output = format_ir_output(
+        &contracts,
+        &args.format,
+        args.pretty,
+        args.with_types,
+        args.annotated,
+        args.ascii_markers,
+    )
+    .context("Failed to format IR output")?;
 
     write_output(args, &output).context("Failed to write output")?;
 
@@ -323,7 +326,7 @@ fn format_ir_output(
     annotated: bool,
     ascii_markers: bool,
 ) -> Result<String> {
-    use thalir_emit::{ThalIREmitter, AnnotatedIREmitter, annotated_ir_emitter::AnnotationConfig};
+    use thalir_emit::{annotated_ir_emitter::AnnotationConfig, AnnotatedIREmitter, ThalIREmitter};
 
     match format {
         OutputFormat::Json | OutputFormat::JsonPretty => {
@@ -343,17 +346,14 @@ fn format_ir_output(
                     emit_ordering_analysis: true,
                     emit_function_headers: true,
                 };
-                let emitter = AnnotatedIREmitter::new(contracts.to_vec())
-                    .with_annotation_config(config);
+                let emitter =
+                    AnnotatedIREmitter::new(contracts.to_vec()).with_annotation_config(config);
                 Ok(emitter.emit_to_string(with_types))
             } else {
                 let emitter = ThalIREmitter::new(contracts.to_vec());
                 Ok(emitter.emit_to_string(with_types))
             }
         }
-        OutputFormat::Debug => {
-            Ok(format!("{:#?}", contracts))
-        }
+        OutputFormat::Debug => Ok(format!("{:#?}", contracts)),
     }
 }
-

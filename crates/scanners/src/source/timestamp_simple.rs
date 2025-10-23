@@ -1,6 +1,5 @@
-
-use crate::core::{Scanner, Finding, Severity, Confidence, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
 use tree_sitter::Node;
 
@@ -29,9 +28,13 @@ impl SimpleTimestampScanner {
         let func_text = function_node.utf8_text(source.as_bytes()).unwrap_or("");
         let is_view_or_pure = func_text.contains(" view") || func_text.contains(" pure");
 
-        let looks_like_predicate = function_name.starts_with("is") && function_name.len() > 2 &&
-                                  function_name.chars().nth(2).is_some_and(|c| c.is_uppercase()) &&
-                                  is_view_or_pure;
+        let looks_like_predicate = function_name.starts_with("is")
+            && function_name.len() > 2
+            && function_name
+                .chars()
+                .nth(2)
+                .is_some_and(|c| c.is_uppercase())
+            && is_view_or_pure;
 
         let body = match function_node.child_by_field_name("body") {
             Some(b) => b,
@@ -59,19 +62,18 @@ impl SimpleTimestampScanner {
                 let is_randomness_pattern = has_keccak || (has_modulo && in_if);
 
                 let is_require = line.contains("require") || line.contains("revert");
-                let has_comparison = line.contains(" > ") || line.contains(" >= ") ||
-                                    line.contains(" < ") || line.contains(" <= ");
+                let has_comparison = line.contains(" > ")
+                    || line.contains(" >= ")
+                    || line.contains(" < ")
+                    || line.contains(" <= ");
 
                 let is_defensive_timelock = is_require && has_comparison;
 
-                let is_anti_spam = is_require && has_equality &&
-                                  (line.contains("last") || line.contains("prev"));
+                let is_anti_spam =
+                    is_require && has_equality && (line.contains("last") || line.contains("prev"));
 
-                let is_simple_assignment = line.contains('=') &&
-                                          !has_equality &&
-                                          !in_if &&
-                                          !in_return &&
-                                          !has_modulo;
+                let is_simple_assignment =
+                    line.contains('=') && !has_equality && !in_if && !in_return && !has_modulo;
 
                 let is_defensive = is_defensive_timelock || is_anti_spam;
 
@@ -202,13 +204,15 @@ impl Scanner for SimpleTimestampScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
-        parser.set_language(&language)
+        parser
+            .set_language(&language)
             .expect("Failed to load Solidity grammar");
 
         let tree = match parser.parse(source, None) {
@@ -244,7 +248,9 @@ impl SimpleTimestampScanner {
 
         if kind == "contract_declaration" {
             let current_contract = if let Some(name_node) = node.child_by_field_name("name") {
-                name_node.utf8_text(source.as_bytes()).unwrap_or(contract_name)
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or(contract_name)
             } else {
                 contract_name
             };

@@ -41,16 +41,13 @@
 //! We cache summaries and only rebuild when necessary. For large codebases, this cache
 //! can cut analysis time by 10x on subsequent runs.
 
-use thalir_core::{
-    contract::Contract,
-    function::Function,
-    instructions::Instruction,
-    block::BlockId,
-};
-use std::collections::{HashMap, HashSet};
 use super::call_graph::{CallGraph, CallGraphBuilder};
-use super::name_resolution::canonical_match;
 use super::hooks::is_callback_hook;
+use super::name_resolution::canonical_match;
+use std::collections::{HashMap, HashSet};
+use thalir_core::{
+    block::BlockId, contract::Contract, function::Function, instructions::Instruction,
+};
 
 #[derive(Debug, Clone)]
 pub struct FunctionSummary {
@@ -170,28 +167,36 @@ impl InterproceduralAnalyzer {
 
                 if let Some(callee_summary) = self.summaries.get(&callee_func) {
                     if callee_summary.modifies_state
-                        && self.has_call_after_external_call(entry_func, &callee_func, contract) {
-                            let paths = self.call_graph.find_call_paths(entry_func, &callee_func);
-                            let call_path = if !paths.is_empty() {
-                                paths[0].clone()
-                            } else {
-                                vec![entry_func.clone(), callee_func.clone()]
-                            };
+                        && self.has_call_after_external_call(entry_func, &callee_func, contract)
+                    {
+                        let paths = self.call_graph.find_call_paths(entry_func, &callee_func);
+                        let call_path = if !paths.is_empty() {
+                            paths[0].clone()
+                        } else {
+                            vec![entry_func.clone(), callee_func.clone()]
+                        };
 
-                            let is_hook = is_callback_hook(&callee_func);
+                        let is_hook = is_callback_hook(&callee_func);
 
-                            let pattern = CrossFunctionPattern {
-                                entry_function: entry_func.clone(),
-                                external_call_position: *entry_summary.external_call_positions.first().unwrap_or(&0),
-                                external_call_block: BlockId(0), // Simplified
-                                callee_function: callee_func.clone(),
-                                callee_call_position: 0, // Would need more detailed tracking
-                                state_modifications: callee_summary.modified_state.iter().cloned().collect(),
-                                call_path,
-                                is_hook_based: is_hook,
-                            };
+                        let pattern = CrossFunctionPattern {
+                            entry_function: entry_func.clone(),
+                            external_call_position: *entry_summary
+                                .external_call_positions
+                                .first()
+                                .unwrap_or(&0),
+                            external_call_block: BlockId(0), // Simplified
+                            callee_function: callee_func.clone(),
+                            callee_call_position: 0, // Would need more detailed tracking
+                            state_modifications: callee_summary
+                                .modified_state
+                                .iter()
+                                .cloned()
+                                .collect(),
+                            call_path,
+                            is_hook_based: is_hook,
+                        };
 
-                            patterns.push(pattern);
+                        patterns.push(pattern);
                     }
                 }
             }
@@ -200,7 +205,12 @@ impl InterproceduralAnalyzer {
         patterns
     }
 
-    fn has_call_after_external_call(&self, caller: &str, callee: &str, contract: &Contract) -> bool {
+    fn has_call_after_external_call(
+        &self,
+        caller: &str,
+        callee: &str,
+        contract: &Contract,
+    ) -> bool {
         let caller_func = match contract.functions.get(caller) {
             Some(f) => f,
             None => return false,
@@ -218,7 +228,8 @@ impl InterproceduralAnalyzer {
                             if external_call_position.is_none() {
                                 external_call_position = Some(position);
                             }
-                        } else if let thalir_core::instructions::CallTarget::Internal(name) = target {
+                        } else if let thalir_core::instructions::CallTarget::Internal(name) = target
+                        {
                             if canonical_match(name, callee) {
                                 callee_call_position = Some(position);
                             }
@@ -249,16 +260,16 @@ impl InterproceduralAnalyzer {
     }
 
     pub fn has_external_calls(&self, func_name: &str) -> bool {
-        self.summaries.get(func_name)
+        self.summaries
+            .get(func_name)
             .map(|s| s.has_external_calls)
             .unwrap_or(false)
     }
 
     pub fn modifies_state(&self, func_name: &str) -> bool {
-        self.summaries.get(func_name)
+        self.summaries
+            .get(func_name)
             .map(|s| s.modifies_state)
             .unwrap_or(false)
     }
 }
-
-

@@ -9,10 +9,10 @@
 pub mod bundle;
 pub mod cranelift_adapter;
 pub mod solidity_source;
-pub mod traits;
 pub mod source;
+pub mod traits;
 
 pub use bundle::{RepresentationBundle, RepresentationSet};
 pub use solidity_source::SoliditySource;
+pub use source::{ExternalCallInfo, FunctionInfo, LoopInfo, ModifierInfo, SourceRepresentation};
 pub use traits::{Representation, Visitable};
-pub use source::{SourceRepresentation, FunctionInfo, LoopInfo, ExternalCallInfo, ModifierInfo};

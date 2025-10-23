@@ -8,26 +8,25 @@
 //! that are difficult to express as deterministic rules.
 
 pub mod config;
-pub mod thalir_extractor;
-pub mod scanner;
 pub mod factory;
 pub mod hybrid_extractor;
-pub mod ir_scanner_base;
 pub mod ir_extractor;
 pub mod ir_formatter;
+pub mod ir_scanner_base;
+pub mod llm_provider;
 pub mod position_marked_ir_extractor;
 pub mod prompts;
 pub mod provider;
+pub mod raw_solidity_extractor;
 pub mod representation;
+pub mod scanner;
 pub mod schemas;
 pub mod source_extractor;
-pub mod raw_solidity_extractor;
-pub mod llm_provider;
+pub mod thalir_extractor;
 
 pub mod mock_provider;
 
 pub use config::LLMConfig;
-pub use scanner::{LLMScanner, LLMScannerConfig};
 pub use factory::{LLMScannerBuilder, LLMScannerFactory};
 pub use hybrid_extractor::HybridExtractor;
 pub use ir_extractor::IRExtractor;
@@ -39,5 +38,6 @@ pub use representation::{
     Focus, RepresentationConfig, RepresentationExtractor, RepresentationFormat,
     RepresentationSnippet, SnippetStrategy, VulnerabilityPattern,
 };
+pub use scanner::{LLMScanner, LLMScannerConfig};
 pub use schemas::{ScannerResponse, VulnerabilityFinding};
 pub use source_extractor::SoliditySourceExtractor;

@@ -1,9 +1,11 @@
-use crate::core::{AnalysisContext, Scanner, ScannerConfig, Finding, FindingFingerprint, DeduplicationStats};
+use crate::core::{
+    AnalysisContext, DeduplicationStats, Finding, FindingFingerprint, Scanner, ScannerConfig,
+};
 use crate::representations::RepresentationBundle;
 use anyhow::Result;
 use rayon::prelude::*;
-use std::sync::Arc;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 pub struct ScanningEngine {
     scanners: Vec<Arc<dyn Scanner>>,
@@ -110,11 +112,14 @@ impl ScanningEngine {
         let original_count = findings.len();
 
         if findings.is_empty() {
-            return (findings, DeduplicationStats {
-                original_count: 0,
-                deduped_count: 0,
-                removed_count: 0,
-            });
+            return (
+                findings,
+                DeduplicationStats {
+                    original_count: 0,
+                    deduped_count: 0,
+                    removed_count: 0,
+                },
+            );
         }
 
         let base_path = std::env::current_dir()
@@ -339,7 +344,10 @@ impl ScanReport {
             md.push_str(&format!("- Original findings: {}\n", stats.original_count));
             md.push_str(&format!("- After deduplication: {}\n", stats.deduped_count));
             md.push_str(&format!("- Removed duplicates: {}\n", stats.removed_count));
-            md.push_str(&format!("- Reduction: {:.1}%\n\n", stats.reduction_percentage()));
+            md.push_str(&format!(
+                "- Reduction: {:.1}%\n\n",
+                stats.reduction_percentage()
+            ));
         }
 
         if !self.findings.is_empty() {

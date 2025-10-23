@@ -116,7 +116,8 @@ impl ConfidenceScorer {
 
         score = score.clamp(0.0, 1.0);
 
-        let explanation = self.explain_reentrancy_score(score, &positive_factors, &negative_factors);
+        let explanation =
+            self.explain_reentrancy_score(score, &positive_factors, &negative_factors);
 
         ConfidenceScore {
             score,
@@ -134,7 +135,10 @@ impl ConfidenceScorer {
         is_critical_function: bool,
         function_name: &str,
     ) -> ConfidenceScore {
-        let mut score = *self.base_confidence.get("missing-access-control").unwrap_or(&0.7);
+        let mut score = *self
+            .base_confidence
+            .get("missing-access-control")
+            .unwrap_or(&0.7);
         let mut positive_factors = Vec::new();
         let mut negative_factors = Vec::new();
 
@@ -170,7 +174,8 @@ impl ConfidenceScorer {
 
         score = score.clamp(0.0, 1.0);
 
-        let explanation = self.explain_access_control_score(score, &positive_factors, &negative_factors);
+        let explanation =
+            self.explain_access_control_score(score, &positive_factors, &negative_factors);
 
         ConfidenceScore {
             score,
@@ -187,7 +192,10 @@ impl ConfidenceScorer {
         has_error_handling: bool,
         function_name: &str,
     ) -> ConfidenceScore {
-        let mut score = *self.base_confidence.get("unchecked-return-ir").unwrap_or(&0.8);
+        let mut score = *self
+            .base_confidence
+            .get("unchecked-return-ir")
+            .unwrap_or(&0.8);
         let mut positive_factors = Vec::new();
         let mut negative_factors = Vec::new();
 
@@ -213,7 +221,8 @@ impl ConfidenceScorer {
 
         score = score.clamp(0.0, 1.0);
 
-        let explanation = self.explain_unchecked_return_score(score, &positive_factors, &negative_factors);
+        let explanation =
+            self.explain_unchecked_return_score(score, &positive_factors, &negative_factors);
 
         ConfidenceScore {
             score,
@@ -235,11 +244,11 @@ impl ConfidenceScorer {
 
     fn is_self_operation(&self, name: &str) -> bool {
         let lower = name.to_lowercase();
-        lower.contains("withdraw") ||
-        lower.contains("deposit") ||
-        lower.contains("claim") ||
-        lower.contains("stake") ||
-        lower.contains("unstake")
+        lower.contains("withdraw")
+            || lower.contains("deposit")
+            || lower.contains("claim")
+            || lower.contains("stake")
+            || lower.contains("unstake")
     }
 
     fn explain_reentrancy_score(

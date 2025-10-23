@@ -14,7 +14,11 @@ pub struct SolidityVersion {
 
 impl SolidityVersion {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     pub fn is_at_least(&self, major: u32, minor: u32, patch: u32) -> bool {
@@ -84,8 +88,14 @@ fn parse_version_constraint(constraint: &str) -> Option<SolidityVersion> {
     }
 
     let major = parts.first()?.parse::<u32>().ok()?;
-    let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
-    let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+    let minor = parts
+        .get(1)
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(0);
+    let patch = parts
+        .get(2)
+        .and_then(|s| s.parse::<u32>().ok())
+        .unwrap_or(0);
 
     Some(SolidityVersion::new(major, minor, patch))
 }

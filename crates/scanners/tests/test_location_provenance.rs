@@ -83,7 +83,6 @@ fn test_location_provenance_complete() -> Result<()> {
         }
     }
 
-
     let reentrancy_findings: Vec<_> = findings
         .iter()
         .filter(|f| f.scanner_id.contains("reentrancy"))

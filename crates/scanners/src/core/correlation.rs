@@ -3,10 +3,7 @@
 //! This module provides mechanisms to correlate findings from different scanners,
 //! enabling cross-validation between deterministic and LLM-based approaches.
 
-use crate::core::{
-    result::Finding,
-    Confidence,
-};
+use crate::core::{result::Finding, Confidence};
 use std::collections::{HashMap, HashSet};
 
 pub struct CorrelationEngine {
@@ -25,7 +22,7 @@ impl CorrelationEngine {
                 Box::new(PatternBasedStrategy::new()),
                 Box::new(SemanticStrategy::new()),
             ],
-            threshold: 0.5,  // Lowered threshold for better matching
+            threshold: 0.5, // Lowered threshold for better matching
             confidence_boosting: true,
         }
     }
@@ -79,7 +76,11 @@ impl CorrelationEngine {
         }
     }
 
-    fn calculate_correlation(&self, finding: &Finding, group: &CorrelationGroup) -> (f64, Option<String>) {
+    fn calculate_correlation(
+        &self,
+        finding: &Finding,
+        group: &CorrelationGroup,
+    ) -> (f64, Option<String>) {
         let mut best_score = 0.0;
         let mut best_strategy = None;
 
@@ -220,7 +221,8 @@ impl CorrelationStrategy for LocationBasedStrategy {
                         continue;
                     }
 
-                    let line_distance = (loc1.line as i32 - loc2.line as i32).unsigned_abs() as usize;
+                    let line_distance =
+                        (loc1.line as i32 - loc2.line as i32).unsigned_abs() as usize;
 
                     if line_distance == 0 {
                         max_score = f64::max(max_score, 1.0);
@@ -295,13 +297,11 @@ impl CorrelationStrategy for PatternBasedStrategy {
         for other in group {
             let other_patterns = self.extract_patterns(&other.finding_type);
 
-            let overlap: HashSet<_> = finding_patterns
-                .intersection(&other_patterns)
-                .collect();
+            let overlap: HashSet<_> = finding_patterns.intersection(&other_patterns).collect();
 
             if !overlap.is_empty() {
-                let score = overlap.len() as f64
-                    / finding_patterns.union(&other_patterns).count() as f64;
+                let score =
+                    overlap.len() as f64 / finding_patterns.union(&other_patterns).count() as f64;
                 return Some(score);
             }
         }
@@ -373,10 +373,9 @@ impl Default for SemanticStrategy {
 
 impl CorrelationStrategy for SemanticStrategy {
     fn calculate_correlation(&self, finding: &Finding, group: &[Finding]) -> Option<f64> {
-        let finding_text = format!("{} {} {}",
-            finding.title,
-            finding.description,
-            finding.finding_type
+        let finding_text = format!(
+            "{} {} {}",
+            finding.title, finding.description, finding.finding_type
         );
         let finding_tokens = self.tokenize(&finding_text);
 
@@ -387,10 +386,9 @@ impl CorrelationStrategy for SemanticStrategy {
         let mut max_score = 0.0;
 
         for other in group {
-            let other_text = format!("{} {} {}",
-                other.title,
-                other.description,
-                other.finding_type
+            let other_text = format!(
+                "{} {} {}",
+                other.title, other.description, other.finding_type
             );
             let other_tokens = self.tokenize(&other_text);
 
@@ -398,9 +396,7 @@ impl CorrelationStrategy for SemanticStrategy {
                 continue;
             }
 
-            let intersection = finding_tokens
-                .intersection(&other_tokens)
-                .count() as f64;
+            let intersection = finding_tokens.intersection(&other_tokens).count() as f64;
             let union = finding_tokens.union(&other_tokens).count() as f64;
 
             if union > 0.0 {
@@ -442,7 +438,14 @@ impl CorrelationGroups {
         });
     }
 
-    fn add_to_group(&mut self, group_id: usize, index: usize, finding: Finding, score: f64, strategy: Option<String>) {
+    fn add_to_group(
+        &mut self,
+        group_id: usize,
+        index: usize,
+        finding: Finding,
+        score: f64,
+        strategy: Option<String>,
+    ) {
         if let Some(group) = self.groups.get_mut(group_id) {
             group.findings.insert(index, finding);
             group.correlation_scores.insert(index, score);
@@ -589,12 +592,21 @@ impl CorrelationResult {
 
                     report.push_str("| Attribute | Deterministic Scanner | LLM Scanner |\n");
                     report.push_str("|-----------|----------------------|-------------|\n");
-                    report.push_str(&format!("| **Scanner** | {} | {} |\n", det.scanner_id, llm.scanner_id));
-                    report.push_str(&format!("| **Severity** | {} | {} |\n", det.severity, llm.severity));
+                    report.push_str(&format!(
+                        "| **Scanner** | {} | {} |\n",
+                        det.scanner_id, llm.scanner_id
+                    ));
+                    report.push_str(&format!(
+                        "| **Severity** | {} | {} |\n",
+                        det.severity, llm.severity
+                    ));
                     report.push_str(&format!("| **Title** | {} | {} |\n", det.title, llm.title));
-                    report.push_str(&format!("| **Confidence** | {} ({:.0}%) | {} ({:.0}%) |\n",
-                        det.confidence, det.confidence_score * 100.0,
-                        llm.confidence, llm.confidence_score * 100.0
+                    report.push_str(&format!(
+                        "| **Confidence** | {} ({:.0}%) | {} ({:.0}%) |\n",
+                        det.confidence,
+                        det.confidence_score * 100.0,
+                        llm.confidence,
+                        llm.confidence_score * 100.0
                     ));
                     report.push('\n');
 
@@ -608,8 +620,14 @@ impl CorrelationResult {
                     report.push_str(&llm.description);
                     report.push_str("\n```\n\n");
 
-                    report.push_str(&format!("**Overall Confidence:** {:.0}%  \n", avg_confidence * 100.0));
-                    report.push_str(&format!("**Correlation Score:** {:.2}  \n", group.average_correlation()));
+                    report.push_str(&format!(
+                        "**Overall Confidence:** {:.0}%  \n",
+                        avg_confidence * 100.0
+                    ));
+                    report.push_str(&format!(
+                        "**Correlation Score:** {:.2}  \n",
+                        group.average_correlation()
+                    ));
                     report.push_str(&format!("**Correlation Strategy:** {}  \n\n", strategy));
                     report.push_str("---\n\n");
                 }

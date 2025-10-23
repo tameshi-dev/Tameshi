@@ -6,6 +6,6 @@
 //! and `analyze` runs comprehensive multi-modal detection combining both pattern
 //! matching and LLM-powered semantic analysis.
 
+pub mod analyze;
 pub mod scan;
 pub mod transform;
-pub mod analyze;

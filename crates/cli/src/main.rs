@@ -2,7 +2,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 mod commands;
-use commands::{scan::ScanCommand, transform::TransformCommand, analyze::AnalyzeArgs};
+use commands::{analyze::AnalyzeArgs, scan::ScanCommand, transform::TransformCommand};
 
 #[derive(Parser)]
 #[command(name = "tameshi")]
@@ -71,7 +71,7 @@ fn main() -> Result<()> {
         Commands::Analyze(args) => {
             let runtime = tokio::runtime::Runtime::new()?;
             runtime.block_on(commands::analyze::execute(args))
-        },
+        }
         Commands::Pipeline {
             input,
             output,
@@ -98,15 +98,16 @@ fn run_pipeline(
 
     println!(
         "{}",
-        "🚀 Full Pipeline: Solidity → ThalIR"
-            .bright_blue()
-            .bold()
+        "🚀 Full Pipeline: Solidity → ThalIR".bright_blue().bold()
     );
     println!("{}", "=".repeat(50).bright_blue());
     println!("📁 Input: {}", input.display());
     println!("📁 Output: {}", output.display());
     if annotated {
-        println!("✨ Mode: Annotated ThalIR{}", if ascii_markers { " (ASCII)" } else { "" });
+        println!(
+            "✨ Mode: Annotated ThalIR{}",
+            if ascii_markers { " (ASCII)" } else { "" }
+        );
     }
 
     let start = Instant::now();
@@ -126,7 +127,7 @@ fn run_pipeline(
     }
 
     let ir_output = if annotated {
-        use thalir_emit::{AnnotatedIREmitter, annotated_ir_emitter::AnnotationConfig};
+        use thalir_emit::{annotated_ir_emitter::AnnotationConfig, AnnotatedIREmitter};
         let config = AnnotationConfig {
             emit_position_markers: true,
             emit_visual_cues: true,
@@ -134,8 +135,7 @@ fn run_pipeline(
             emit_ordering_analysis: true,
             emit_function_headers: true,
         };
-        let emitter = AnnotatedIREmitter::new(contracts.clone())
-            .with_annotation_config(config);
+        let emitter = AnnotatedIREmitter::new(contracts.clone()).with_annotation_config(config);
         emitter.emit_to_string(false)
     } else {
         use thalir_emit::ThalIREmitter;

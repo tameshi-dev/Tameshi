@@ -1,4 +1,3 @@
-
 pub trait InheritanceProvider {
     fn get_parents(&self, contract: &str) -> Vec<String>;
 

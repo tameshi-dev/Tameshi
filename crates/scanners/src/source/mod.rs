@@ -6,31 +6,31 @@
 //! and timestamp dependencies. Particularly effective for Solidity-specific features
 //! and providing accurate source code locations in vulnerability reports.
 
-pub mod loop_reentrancy;
-pub mod classic_reentrancy;
-pub mod integer_overflow;
 pub mod access_control;
-pub mod unchecked_return;
+pub mod classic_reentrancy;
 pub mod dangerous_functions;
-pub mod time_vulnerabilities;
-pub mod dos_vulnerabilities;
-pub mod dos_ast;
-pub mod missing_access_control;
-pub mod gas_limit_dos;
 pub mod delegatecall;
-pub mod unchecked_overflow;
+pub mod dos_ast;
+pub mod dos_vulnerabilities;
+pub mod gas_limit_dos;
+pub mod integer_overflow;
+pub mod loop_reentrancy;
+pub mod missing_access_control;
+pub mod time_vulnerabilities;
 pub mod timestamp_simple;
+pub mod unchecked_overflow;
+pub mod unchecked_return;
 
-pub use loop_reentrancy::SourceLoopReentrancyScanner;
+pub use access_control::{get_functions_with_modifiers, SourceAccessControlScanner};
 pub use classic_reentrancy::SourceClassicReentrancyScanner;
-pub use integer_overflow::SourceIntegerOverflowScanner;
-pub use access_control::{SourceAccessControlScanner, get_functions_with_modifiers};
-pub use unchecked_return::SourceUncheckedReturnScanner;
 pub use dangerous_functions::SourceDangerousFunctionsScanner;
-pub use time_vulnerabilities::SourceTimeVulnerabilitiesScanner;
-pub use dos_vulnerabilities::SourceDoSVulnerabilitiesScanner;
-pub use missing_access_control::SourceMissingAccessControlScanner;
-pub use gas_limit_dos::SourceGasLimitDoSScanner;
 pub use delegatecall::SourceDelegatecallScanner;
-pub use unchecked_overflow::SourceUncheckedOverflowScanner;
+pub use dos_vulnerabilities::SourceDoSVulnerabilitiesScanner;
+pub use gas_limit_dos::SourceGasLimitDoSScanner;
+pub use integer_overflow::SourceIntegerOverflowScanner;
+pub use loop_reentrancy::SourceLoopReentrancyScanner;
+pub use missing_access_control::SourceMissingAccessControlScanner;
+pub use time_vulnerabilities::SourceTimeVulnerabilitiesScanner;
 pub use timestamp_simple::SimpleTimestampScanner;
+pub use unchecked_overflow::SourceUncheckedOverflowScanner;
+pub use unchecked_return::SourceUncheckedReturnScanner;

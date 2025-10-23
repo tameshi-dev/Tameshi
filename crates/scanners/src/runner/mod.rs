@@ -9,5 +9,5 @@
 pub mod engine;
 pub mod registry;
 
-pub use engine::{ScanningEngine, ScanReport};
+pub use engine::{ScanReport, ScanningEngine};
 pub use registry::ScannerRegistry;

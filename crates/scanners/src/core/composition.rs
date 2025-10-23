@@ -1,4 +1,4 @@
-use crate::core::{AnalysisContext, Confidence, Scanner, Finding, Severity};
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use crate::representations::RepresentationSet;
 use anyhow::Result;
 use std::sync::Arc;
@@ -111,8 +111,7 @@ impl SequentialScanner {
         S: Scanner + 'static,
         F: Fn(&[Finding]) -> bool + Send + Sync + 'static,
     {
-        self.stages
-            .push((Arc::new(scanner), Box::new(continue_if)));
+        self.stages.push((Arc::new(scanner), Box::new(continue_if)));
         self
     }
 }

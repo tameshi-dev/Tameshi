@@ -1,16 +1,16 @@
 //! Price manipulation vulnerability Scanner using IR analysis
 
 use crate::core::{Confidence, Finding, Severity};
+use anyhow::Result;
 use thalir_core::{
     analysis::{
         cursor::ScannerCursor,
-        pass::{Pass, PassManager, AnalysisID},
+        pass::{AnalysisID, Pass, PassManager},
     },
     contract::Contract,
-    instructions::{Instruction, CallTarget},
+    instructions::{CallTarget, Instruction},
     values::Value,
 };
-use anyhow::Result;
 
 pub struct IRPriceManipulationScanner {
     findings: Vec<Finding>,
@@ -22,14 +22,14 @@ impl IRPriceManipulationScanner {
             findings: Vec::new(),
         }
     }
-    
+
     pub fn get_findings(&self) -> Vec<Finding> {
         self.findings.clone()
     }
-    
+
     pub fn analyze(&mut self, contract: &Contract) -> Result<Vec<Finding>> {
         self.findings.clear();
-        
+
         for (func_name, function) in &contract.functions {
             let mut cursor = ScannerCursor::at_entry(function);
             let mut external_calls = Vec::new();
@@ -37,109 +37,140 @@ impl IRPriceManipulationScanner {
             let mut arithmetic_ops = Vec::new();
             let mut price_related_patterns = Vec::new();
             let mut oracle_interactions = Vec::new();
-            
+
             for block_id in cursor.traverse_dom_order() {
                 let block = function.body.blocks.get(&block_id).unwrap();
-                
+
                 for (idx, instruction) in block.instructions.iter().enumerate() {
                     match instruction {
-                        Instruction::Call { target, args, result, .. } => {
+                        Instruction::Call {
+                            target,
+                            args,
+                            result,
+                            ..
+                        } => {
                             external_calls.push((block_id, idx, target, args.len(), result));
-                            
+
                             if self.is_potential_oracle_call(target) {
                                 oracle_interactions.push((block_id, idx, target));
                             }
                         }
-                        
+
                         Instruction::StorageLoad { result, key, .. } => {
                             storage_reads.push((block_id, idx, result, key));
                         }
-                        
-                        Instruction::Mul { result, left, right, .. } |
-                        Instruction::Div { result, left, right, .. } => {
+
+                        Instruction::Mul {
+                            result,
+                            left,
+                            right,
+                            ..
+                        }
+                        | Instruction::Div {
+                            result,
+                            left,
+                            right,
+                            ..
+                        } => {
                             arithmetic_ops.push((block_id, idx, result, left, right, instruction));
                         }
-                        
+
                         Instruction::Require { condition, message } => {
                             if self.is_price_related_check(condition, message) {
-                                price_related_patterns.push((block_id, idx, "price_check", message.clone()));
+                                price_related_patterns.push((
+                                    block_id,
+                                    idx,
+                                    "price_check",
+                                    message.clone(),
+                                ));
                             }
                         }
-                        
+
                         _ => {}
                     }
                 }
             }
-            
+
             self.analyze_single_oracle_dependency(contract, func_name, &oracle_interactions);
-            self.analyze_price_calculation_risks(contract, func_name, &arithmetic_ops, &storage_reads);
-            self.analyze_flashloan_risks(contract, func_name, &external_calls, &price_related_patterns);
-            self.analyze_oracle_freshness(contract, func_name, &oracle_interactions, &price_related_patterns);
+            self.analyze_price_calculation_risks(
+                contract,
+                func_name,
+                &arithmetic_ops,
+                &storage_reads,
+            );
+            self.analyze_flashloan_risks(
+                contract,
+                func_name,
+                &external_calls,
+                &price_related_patterns,
+            );
+            self.analyze_oracle_freshness(
+                contract,
+                func_name,
+                &oracle_interactions,
+                &price_related_patterns,
+            );
             self.analyze_price_validation(contract, func_name, &price_related_patterns);
         }
-        
+
         Ok(self.findings.clone())
     }
-    
+
     fn is_potential_oracle_call(&self, target: &CallTarget) -> bool {
         match target {
             CallTarget::External(address) => {
                 let addr_str = format!("{:?}", address).to_lowercase();
-                addr_str.contains("oracle") ||
-                addr_str.contains("price") ||
-                addr_str.contains("feed") ||
-                addr_str.contains("chainlink") ||
-                addr_str.contains("aggregator") ||
-                addr_str.contains("latestround")
+                addr_str.contains("oracle")
+                    || addr_str.contains("price")
+                    || addr_str.contains("feed")
+                    || addr_str.contains("chainlink")
+                    || addr_str.contains("aggregator")
+                    || addr_str.contains("latestround")
             }
             CallTarget::Library(name) => {
                 let name_lower = name.to_lowercase();
-                name_lower.contains("oracle") ||
-                name_lower.contains("price") ||
-                name_lower.contains("feed") ||
-                name_lower.contains("chainlink") ||
-                name_lower.contains("aggregator") ||
-                name_lower.contains("latestround")
+                name_lower.contains("oracle")
+                    || name_lower.contains("price")
+                    || name_lower.contains("feed")
+                    || name_lower.contains("chainlink")
+                    || name_lower.contains("aggregator")
+                    || name_lower.contains("latestround")
             }
             CallTarget::Internal(name) => {
                 let name_lower = name.to_lowercase();
-                name_lower.contains("oracle") ||
-                name_lower.contains("price") ||
-                name_lower.contains("feed") ||
-                name_lower.contains("getprice") ||
-                name_lower.contains("latestround")
+                name_lower.contains("oracle")
+                    || name_lower.contains("price")
+                    || name_lower.contains("feed")
+                    || name_lower.contains("getprice")
+                    || name_lower.contains("latestround")
             }
             CallTarget::Builtin(_) => false,
         }
     }
-    
+
     fn is_price_related_check(&self, _condition: &Value, message: &str) -> bool {
         let message_lower = message.to_lowercase();
-        message_lower.contains("price") ||
-        message_lower.contains("oracle") ||
-        message_lower.contains("rate") ||
-        message_lower.contains("exchange") ||
-        message_lower.contains("swap") ||
-        message_lower.contains("slippage") ||
-        message_lower.contains("deviation")
+        message_lower.contains("price")
+            || message_lower.contains("oracle")
+            || message_lower.contains("rate")
+            || message_lower.contains("exchange")
+            || message_lower.contains("swap")
+            || message_lower.contains("slippage")
+            || message_lower.contains("deviation")
     }
-    
+
     fn analyze_single_oracle_dependency(
         &mut self,
         contract: &Contract,
         func_name: &str,
-        oracle_interactions: &[(thalir_core::block::BlockId, usize, &CallTarget)]
+        oracle_interactions: &[(thalir_core::block::BlockId, usize, &CallTarget)],
     ) {
         let oracle_count = oracle_interactions.len();
 
         if oracle_count == 1 {
             let (block_id, idx, _) = oracle_interactions[0];
-            let location = super::provenance::get_instruction_location(
-                contract,
-                func_name,
-                block_id,
-                idx,
-            );
+            let location =
+                super::provenance::get_instruction_location(contract, func_name, block_id, idx);
 
             self.findings.push(Finding::new(
                 "single-oracle-dependency".to_string(),
@@ -155,15 +186,26 @@ impl IRPriceManipulationScanner {
             .with_contract(&contract.name)
             .with_function(func_name));
         }
-
     }
-    
+
     fn analyze_price_calculation_risks(
         &mut self,
         contract: &Contract,
         func_name: &str,
-        arithmetic_ops: &[(thalir_core::block::BlockId, usize, &Value, &Value, &Value, &Instruction)],
-        storage_reads: &[(thalir_core::block::BlockId, usize, &Value, &thalir_core::instructions::StorageKey)]
+        arithmetic_ops: &[(
+            thalir_core::block::BlockId,
+            usize,
+            &Value,
+            &Value,
+            &Value,
+            &Instruction,
+        )],
+        storage_reads: &[(
+            thalir_core::block::BlockId,
+            usize,
+            &Value,
+            &thalir_core::instructions::StorageKey,
+        )],
     ) {
         let calc_count = arithmetic_ops.len();
         let storage_count = storage_reads.len();
@@ -171,10 +213,7 @@ impl IRPriceManipulationScanner {
         if calc_count > 3 && storage_count > 0 {
             if let Some((block_id, idx, _, _, _, _)) = arithmetic_ops.first() {
                 let location = super::provenance::get_instruction_location(
-                    contract,
-                    func_name,
-                    *block_id,
-                    *idx,
+                    contract, func_name, *block_id, *idx,
                 );
 
                 self.findings.push(Finding::new(
@@ -197,10 +236,7 @@ impl IRPriceManipulationScanner {
             if let Instruction::Div { .. } = instruction {
                 if self.is_potentially_manipulable_value(right) {
                     let location = super::provenance::get_instruction_location(
-                        contract,
-                        func_name,
-                        *block_id,
-                        *idx,
+                        contract, func_name, *block_id, *idx,
                     );
 
                     self.findings.push(Finding::new(
@@ -220,7 +256,7 @@ impl IRPriceManipulationScanner {
             }
         }
     }
-    
+
     fn is_potentially_manipulable_value(&self, value: &Value) -> bool {
         match value {
             Value::StorageRef(_) => true,
@@ -229,13 +265,19 @@ impl IRPriceManipulationScanner {
             _ => false,
         }
     }
-    
+
     fn analyze_flashloan_risks(
         &mut self,
         contract: &Contract,
         func_name: &str,
-        external_calls: &[(thalir_core::block::BlockId, usize, &CallTarget, usize, &Value)],
-        price_patterns: &[(thalir_core::block::BlockId, usize, &str, String)]
+        external_calls: &[(
+            thalir_core::block::BlockId,
+            usize,
+            &CallTarget,
+            usize,
+            &Value,
+        )],
+        price_patterns: &[(thalir_core::block::BlockId, usize, &str, String)],
     ) {
         let call_count = external_calls.len();
         let price_check_count = price_patterns.len();
@@ -243,10 +285,7 @@ impl IRPriceManipulationScanner {
         if call_count > 2 && price_check_count > 0 {
             if let Some((block_id, idx, _, _, _)) = external_calls.first() {
                 let location = super::provenance::get_instruction_location(
-                    contract,
-                    func_name,
-                    *block_id,
-                    *idx,
+                    contract, func_name, *block_id, *idx,
                 );
 
                 self.findings.push(Finding::new(
@@ -271,27 +310,23 @@ impl IRPriceManipulationScanner {
         contract: &Contract,
         func_name: &str,
         oracle_interactions: &[(thalir_core::block::BlockId, usize, &CallTarget)],
-        price_patterns: &[(thalir_core::block::BlockId, usize, &str, String)]
+        price_patterns: &[(thalir_core::block::BlockId, usize, &str, String)],
     ) {
         if oracle_interactions.is_empty() {
             return;
         }
 
         let has_timestamp_checks = price_patterns.iter().any(|(_, _, _, message)| {
-            message.to_lowercase().contains("stale") ||
-            message.to_lowercase().contains("fresh") ||
-            message.to_lowercase().contains("timestamp") ||
-            message.to_lowercase().contains("time")
+            message.to_lowercase().contains("stale")
+                || message.to_lowercase().contains("fresh")
+                || message.to_lowercase().contains("timestamp")
+                || message.to_lowercase().contains("time")
         });
 
         if !has_timestamp_checks {
             let (block_id, idx, _) = oracle_interactions[0];
-            let location = super::provenance::get_instruction_location(
-                contract,
-                func_name,
-                block_id,
-                idx,
-            );
+            let location =
+                super::provenance::get_instruction_location(contract, func_name, block_id, idx);
 
             self.findings.push(Finding::new(
                 "no-oracle-freshness-check".to_string(),
@@ -313,24 +348,24 @@ impl IRPriceManipulationScanner {
         &mut self,
         contract: &Contract,
         func_name: &str,
-        price_patterns: &[(thalir_core::block::BlockId, usize, &str, String)]
+        price_patterns: &[(thalir_core::block::BlockId, usize, &str, String)],
     ) {
         if price_patterns.is_empty() {
             return;
         }
-        
+
         let has_deviation_check = price_patterns.iter().any(|(_, _, _, message)| {
-            message.to_lowercase().contains("deviation") ||
-            message.to_lowercase().contains("threshold") ||
-            message.to_lowercase().contains("range")
+            message.to_lowercase().contains("deviation")
+                || message.to_lowercase().contains("threshold")
+                || message.to_lowercase().contains("range")
         });
-        
+
         let has_slippage_check = price_patterns.iter().any(|(_, _, _, message)| {
-            message.to_lowercase().contains("slippage") ||
-            message.to_lowercase().contains("minimum") ||
-            message.to_lowercase().contains("expected")
+            message.to_lowercase().contains("slippage")
+                || message.to_lowercase().contains("minimum")
+                || message.to_lowercase().contains("expected")
         });
-        
+
         if !has_deviation_check {
             self.findings.push(Finding::new(
                 "no-price-deviation-check".to_string(),
@@ -367,20 +402,24 @@ impl Pass for IRPriceManipulationScanner {
     fn name(&self) -> &'static str {
         "ir-price-manipulation"
     }
-    
-    fn run_on_contract(&mut self, contract: &mut Contract, _manager: &mut PassManager) -> Result<()> {
+
+    fn run_on_contract(
+        &mut self,
+        contract: &mut Contract,
+        _manager: &mut PassManager,
+    ) -> Result<()> {
         self.analyze(contract)?;
         Ok(())
     }
-    
+
     fn required_analyses(&self) -> Vec<AnalysisID> {
         vec![AnalysisID::ControlFlow, AnalysisID::DefUse]
     }
-    
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

@@ -207,7 +207,10 @@ impl Finding {
         self
     }
 
-    pub fn with_provenance(mut self, provenance: crate::core::provenance::FindingProvenance) -> Self {
+    pub fn with_provenance(
+        mut self,
+        provenance: crate::core::provenance::FindingProvenance,
+    ) -> Self {
         self.provenance = Some(provenance);
         self
     }

@@ -81,11 +81,10 @@ impl PromptBuilder {
         self.add_template(Self::source_front_running_template());
         self.add_template(Self::source_overflow_template());
 
-        
         self.add_template(Self::tameshi_ir_general_template());
         self.add_template(Self::tameshi_ir_reentrancy_template());
         self.add_template(Self::tameshi_ir_simple_template());
-        
+
         self.add_template(Self::hybrid_reentrancy_template());
         self.add_template(Self::hybrid_access_control_template());
 
@@ -233,7 +232,6 @@ impl PromptBuilder {
             ])
     }
 
-
     fn source_reentrancy_template() -> PromptTemplate {
         PromptTemplate::new("source_reentrancy")
             .with_system_prompt(SOURCE_REENTRANCY_SYSTEM_PROMPT)
@@ -311,7 +309,6 @@ impl PromptBuilder {
             ])
     }
 
-    
     fn tameshi_ir_general_template() -> PromptTemplate {
         PromptTemplate::new("cranelift-ir-general")
             .with_system_prompt(CRANELIFT_IR_GENERAL_SYSTEM_TEMPLATE)
@@ -323,7 +320,7 @@ impl PromptBuilder {
                 "Value dependencies".to_string(),
             ])
     }
-    
+
     fn tameshi_ir_reentrancy_template() -> PromptTemplate {
         PromptTemplate::new("cranelift-ir-reentrancy")
             .with_system_prompt(CRANELIFT_IR_REENTRANCY_SYSTEM_TEMPLATE)
@@ -383,7 +380,6 @@ impl PromptBuilder {
             ])
     }
 }
-
 
 const GENERAL_SYSTEM_PROMPT: &str = r#"You are an expert smart contract security auditor analyzing code for vulnerabilities.
 
@@ -560,7 +556,10 @@ mod tests {
         let builder = PromptBuilder::new();
 
         let mut variables = HashMap::new();
-        variables.insert("representation_type".to_string(), "Cranelift IR".to_string());
+        variables.insert(
+            "representation_type".to_string(),
+            "Cranelift IR".to_string(),
+        );
         variables.insert("contract_metadata".to_string(), "Test contract".to_string());
         variables.insert(
             "code_representation".to_string(),
@@ -588,7 +587,6 @@ mod tests {
         assert_eq!(result, "Hello Alice, you have 5 messages");
     }
 }
-
 
 const UNCHECKED_RETURNS_SYSTEM_PROMPT: &str = r#"You are a specialist in detecting unchecked return value vulnerabilities.
 
@@ -624,7 +622,6 @@ Focus on:
 Return findings as JSON:
 {json_schema}"#;
 
-
 const DOS_PATTERNS_SYSTEM_PROMPT: &str = r#"You are a denial-of-service vulnerability specialist.
 
 FOCUS: Detect patterns that could lead to DoS attacks.
@@ -655,7 +652,6 @@ Focus on:
 Return findings as JSON:
 {json_schema}"#;
 
-
 const TIMESTAMP_DEPENDENCE_SYSTEM_PROMPT: &str = r#"You are a timestamp manipulation vulnerability specialist.
 
 FOCUS: Detect unsafe dependencies on block timestamps.
@@ -684,7 +680,6 @@ Focus on:
 
 Return findings as JSON:
 {json_schema}"#;
-
 
 const FRONT_RUNNING_SYSTEM_PROMPT: &str = r#"You are a front-running and MEV vulnerability specialist.
 
@@ -715,7 +710,6 @@ Focus on:
 
 Return findings as JSON:
 {json_schema}"#;
-
 
 const SOURCE_REENTRANCY_SYSTEM_PROMPT: &str = r#"You are a reentrancy specialist analyzing raw Solidity source code.
 
@@ -933,7 +927,6 @@ Focus on:
 Return findings as JSON:
 {json_schema}"#;
 
-
 const SOURCE_ANALYSIS_SYSTEM_PROMPT: &str = r#"You are an expert smart contract auditor analyzing raw Solidity source code.
 
 YOUR ROLE:
@@ -969,11 +962,6 @@ Remember to:
 - Identify all vulnerability patterns
 - Provide specific line references where possible
 - Include clear root causes and attack vectors"#;
-
-
-
-
-
 
 const CRANELIFT_IR_GENERAL_SYSTEM_TEMPLATE: &str = r#"You are analyzing Cranelift IR (Intermediate Representation) in SSA form for smart contract vulnerabilities.
 
@@ -1260,7 +1248,6 @@ Remember: Instructions execute sequentially within blocks. Focus on EXPLOITABLE 
 Respond with JSON only in this format:
 {"vulnerable": true/false, "confidence": "High/Medium/Low", "details": "specific evidence with function names and instruction patterns"}"#;
 
-
 pub const HYBRID_REENTRANCY_SYSTEM_PROMPT: &str = r#"You are an expert smart contract security auditor with access to both high-level Solidity source code and its corresponding low-level Cranelift IR representation.
 
 MISSION: Analyze both representations to detect reentrancy vulnerabilities with maximum precision.
@@ -1355,7 +1342,6 @@ COMPREHENSIVE ANALYSIS:
 
 Return findings as JSON:
 {json_schema}"#;
-
 
 const O1_POSITION_MARKED_REENTRANCY_SYSTEM_PROMPT: &str = r#"You are a security expert analyzing Position-Marked Intermediate Representation (IR) for reentrancy vulnerabilities.
 

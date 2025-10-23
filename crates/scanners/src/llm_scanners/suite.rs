@@ -23,7 +23,9 @@ impl LLMScannerSuite {
 
     pub fn description(&self) -> &'static str {
         match self {
-            Self::SingleComprehensive => "Single comprehensive scanner detecting all vulnerability types in one call",
+            Self::SingleComprehensive => {
+                "Single comprehensive scanner detecting all vulnerability types in one call"
+            }
         }
     }
 
@@ -67,7 +69,8 @@ impl LLMScannerSuiteBuilder {
     }
 
     pub fn build(self) -> Result<Vec<Arc<dyn Scanner>>> {
-        let provider = self.provider
+        let provider = self
+            .provider
             .ok_or_else(|| anyhow::anyhow!("LLM provider must be set before building suite"))?;
 
         let mut scanners: Vec<Arc<dyn Scanner>> = Vec::new();
@@ -104,7 +107,10 @@ mod tests {
 
     #[async_trait]
     impl LLMProvider for MockProvider {
-        async fn analyze(&self, _request: crate::llm::provider::LLMRequest) -> std::result::Result<LLMResponse, crate::llm::provider::LLMError> {
+        async fn analyze(
+            &self,
+            _request: crate::llm::provider::LLMRequest,
+        ) -> std::result::Result<LLMResponse, crate::llm::provider::LLMError> {
             Ok(LLMResponse {
                 content: r#"{"vulnerabilities": []}"#.to_string(),
                 model: "mock-model".to_string(),
@@ -127,8 +133,14 @@ mod tests {
 
     #[test]
     fn test_suite_properties() {
-        assert_eq!(LLMScannerSuite::SingleComprehensive.name(), "Single Comprehensive");
-        assert_eq!(LLMScannerSuite::SingleComprehensive.description(), "Single comprehensive scanner detecting all vulnerability types in one call");
+        assert_eq!(
+            LLMScannerSuite::SingleComprehensive.name(),
+            "Single Comprehensive"
+        );
+        assert_eq!(
+            LLMScannerSuite::SingleComprehensive.description(),
+            "Single comprehensive scanner detecting all vulnerability types in one call"
+        );
         assert_eq!(LLMScannerSuite::SingleComprehensive.scanner_count(), 1);
     }
 
@@ -151,7 +163,11 @@ mod tests {
 
         assert!(result.is_ok());
         let scanners = result.unwrap();
-        assert_eq!(scanners.len(), 1, "SingleComprehensive suite should have 1 scanner");
+        assert_eq!(
+            scanners.len(),
+            1,
+            "SingleComprehensive suite should have 1 scanner"
+        );
     }
 
     #[test]

@@ -238,10 +238,8 @@ impl AnalysisRequest {
 impl AnalysisSource {
     pub fn load(&self) -> anyhow::Result<String> {
         match self {
-            AnalysisSource::File(path) => {
-                std::fs::read_to_string(path)
-                    .map_err(|e| anyhow::anyhow!("Failed to read file {}: {}", path.display(), e))
-            }
+            AnalysisSource::File(path) => std::fs::read_to_string(path)
+                .map_err(|e| anyhow::anyhow!("Failed to read file {}: {}", path.display(), e)),
             AnalysisSource::Memory(source) => Ok(source.clone()),
             AnalysisSource::Directory(_) => {
                 Err(anyhow::anyhow!("Directory analysis not yet implemented"))

@@ -1,15 +1,15 @@
 //! Dangerous functions Scanner using IR analysis
 
 use crate::core::{Confidence, Finding, Severity};
+use anyhow::Result;
 use thalir_core::{
     analysis::{
         cursor::ScannerCursor,
         pass::{Pass, PassManager},
     },
     contract::Contract,
-    instructions::{Instruction, CallTarget, BuiltinFunction},
+    instructions::{BuiltinFunction, CallTarget, Instruction},
 };
-use anyhow::Result;
 
 pub struct IRDangerousFunctionsScanner {
     findings: Vec<Finding>,
@@ -21,39 +21,42 @@ impl IRDangerousFunctionsScanner {
             findings: Vec::new(),
         }
     }
-    
+
     pub fn get_findings(&self) -> Vec<Finding> {
         self.findings.clone()
     }
-    
+
     pub fn analyze(&mut self, contract: &Contract) -> Result<Vec<Finding>> {
         self.findings.clear();
-        
+
         for (func_name, function) in &contract.functions {
             let mut cursor = ScannerCursor::at_entry(function);
-            
+
             for block_id in cursor.traverse_dom_order() {
                 let block = function.body.blocks.get(&block_id).unwrap();
-                
+
                 for (idx, instruction) in block.instructions.iter().enumerate() {
                     match instruction {
-                        Instruction::Call { target, .. } => {
-                            match target {
-                                CallTarget::Builtin(builtin) => {
-                                    self.check_dangerous_builtin(contract, func_name, builtin, block_id, idx);
-                                }
-                                CallTarget::Internal(function_name) => {
-                                    self.check_dangerous_internal_function(contract, func_name, function_name, block_id, idx);
-                                }
-                                _ => {}
+                        Instruction::Call { target, .. } => match target {
+                            CallTarget::Builtin(builtin) => {
+                                self.check_dangerous_builtin(
+                                    contract, func_name, builtin, block_id, idx,
+                                );
                             }
-                        }
+                            CallTarget::Internal(function_name) => {
+                                self.check_dangerous_internal_function(
+                                    contract,
+                                    func_name,
+                                    function_name,
+                                    block_id,
+                                    idx,
+                                );
+                            }
+                            _ => {}
+                        },
                         Instruction::DelegateCall { .. } => {
                             let location = super::provenance::get_instruction_location(
-                                contract,
-                                func_name,
-                                block_id,
-                                idx,
+                                contract, func_name, block_id, idx,
                             );
 
                             self.findings.push(Finding::new(
@@ -72,10 +75,7 @@ impl IRDangerousFunctionsScanner {
                         }
                         Instruction::Selfdestruct { .. } => {
                             let location = super::provenance::get_instruction_location(
-                                contract,
-                                func_name,
-                                block_id,
-                                idx,
+                                contract, func_name, block_id, idx,
                             );
 
                             self.findings.push(Finding::new(
@@ -97,14 +97,28 @@ impl IRDangerousFunctionsScanner {
                 }
             }
         }
-        
+
         Ok(self.findings.clone())
     }
-    
-    fn check_dangerous_builtin(&mut self, _contract: &Contract, _func_name: &str, _builtin: &BuiltinFunction, _block_id: thalir_core::block::BlockId, _idx: usize) {
+
+    fn check_dangerous_builtin(
+        &mut self,
+        _contract: &Contract,
+        _func_name: &str,
+        _builtin: &BuiltinFunction,
+        _block_id: thalir_core::block::BlockId,
+        _idx: usize,
+    ) {
     }
 
-    fn check_dangerous_internal_function(&mut self, contract: &Contract, func_name: &str, target_name: &str, block_id: thalir_core::block::BlockId, idx: usize) {
+    fn check_dangerous_internal_function(
+        &mut self,
+        contract: &Contract,
+        func_name: &str,
+        target_name: &str,
+        block_id: thalir_core::block::BlockId,
+        idx: usize,
+    ) {
         let dangerous_patterns = [
             "selfdestruct",
             "suicide", // Old name for selfdestruct
@@ -114,26 +128,24 @@ impl IRDangerousFunctionsScanner {
 
         for pattern in &dangerous_patterns {
             if target_name.to_lowercase().contains(pattern) {
-                let location = super::provenance::get_instruction_location(
-                    contract,
-                    func_name,
-                    block_id,
-                    idx,
-                );
+                let location =
+                    super::provenance::get_instruction_location(contract, func_name, block_id, idx);
 
-                self.findings.push(Finding::new(
-                    format!("dangerous-function-{}", pattern),
-                    Severity::Medium,
-                    Confidence::Medium,
-                    format!("Potentially dangerous function call in '{}'", func_name),
-                    format!(
+                self.findings.push(
+                    Finding::new(
+                        format!("dangerous-function-{}", pattern),
+                        Severity::Medium,
+                        Confidence::Medium,
+                        format!("Potentially dangerous function call in '{}'", func_name),
+                        format!(
                         "Function '{}' in contract '{}' calls function '{}' which may be dangerous",
                         func_name, contract.name, target_name
                     ),
-                )
-                .with_location(location)
-                .with_contract(&contract.name)
-                .with_function(func_name));
+                    )
+                    .with_location(location)
+                    .with_contract(&contract.name)
+                    .with_function(func_name),
+                );
             }
         }
     }
@@ -143,16 +155,20 @@ impl Pass for IRDangerousFunctionsScanner {
     fn name(&self) -> &'static str {
         "ir-dangerous-functions"
     }
-    
-    fn run_on_contract(&mut self, contract: &mut Contract, _manager: &mut PassManager) -> Result<()> {
+
+    fn run_on_contract(
+        &mut self,
+        contract: &mut Contract,
+        _manager: &mut PassManager,
+    ) -> Result<()> {
         self.analyze(contract)?;
         Ok(())
     }
-    
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

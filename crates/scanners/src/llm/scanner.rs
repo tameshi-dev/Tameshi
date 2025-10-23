@@ -1,16 +1,16 @@
 use anyhow::{Context, Result};
+use serde_json;
 use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Instant;
 use std::fs::OpenOptions;
 use std::io::Write;
-use serde_json;
+use std::sync::Arc;
+use std::time::Instant;
 use tracing::{debug, info, warn};
 
 use crate::core::{
     context::AnalysisContext,
-    scanner::Scanner,
     result::{Finding, FindingMetadata, Location},
+    scanner::Scanner,
     severity::{Confidence, Severity},
 };
 
@@ -67,9 +67,7 @@ impl LLMScanner {
 
         let extractor: Option<Box<dyn RepresentationExtractor>> =
             match config.representation_config.format {
-                RepresentationFormat::Placeholder | RepresentationFormat::Auto => {
-                    None
-                }
+                RepresentationFormat::Placeholder | RepresentationFormat::Auto => None,
                 _ => None, // IR and Combined not yet implemented
             };
 
@@ -165,9 +163,15 @@ impl LLMScanner {
             .parse_response(&response.content)
             .context("Failed to parse LLM response")?;
 
-        debug!("Parsed LLM response: {} findings", scanner_response.findings.len());
+        debug!(
+            "Parsed LLM response: {} findings",
+            scanner_response.findings.len()
+        );
         for (i, finding) in scanner_response.findings.iter().enumerate() {
-            debug!("Finding {}: {} - {} (confidence: {:?})", i, finding.vuln_type, finding.title, finding.confidence);
+            debug!(
+                "Finding {}: {} - {} (confidence: {:?})",
+                i, finding.vuln_type, finding.title, finding.confidence
+            );
         }
 
         scanner_response.metadata = Some(super::schemas::AnalysisMetadata {
@@ -192,18 +196,16 @@ impl LLMScanner {
                     );
                     self.convert_simple_to_complex_response(simple_response)
                 }
-                Err(_) => {
-                    match serde_json::from_str::<ScannerResponse>(content) {
-                        Ok(response) => {
-                            tracing::debug!("Successfully parsed as complex format");
-                            response
-                        }
-                        Err(e) => {
-                            return Err(anyhow::anyhow!("Failed to parse LLM response: {}", e))
-                                .context("Invalid JSON in LLM response");
-                        }
+                Err(_) => match serde_json::from_str::<ScannerResponse>(content) {
+                    Ok(response) => {
+                        tracing::debug!("Successfully parsed as complex format");
+                        response
                     }
-                }
+                    Err(e) => {
+                        return Err(anyhow::anyhow!("Failed to parse LLM response: {}", e))
+                            .context("Invalid JSON in LLM response");
+                    }
+                },
             };
 
         self.validate_response(&response)?;
@@ -319,10 +321,9 @@ impl LLMScanner {
         }
 
         for evidence in &finding.evidence {
-            println!("  📍 Creating location: {}:{}-{}",
-                evidence.code_ref.file,
-                evidence.code_ref.line_start,
-                evidence.code_ref.line_end
+            println!(
+                "  📍 Creating location: {}:{}-{}",
+                evidence.code_ref.file, evidence.code_ref.line_start, evidence.code_ref.line_end
             );
 
             let location = Location::new(
@@ -470,22 +471,42 @@ impl LLMScanner {
             metadata.insert("was_truncated".to_string(), "true".to_string());
         }
 
-        Self::debug_log(&format!("📤 SENDING TO LLM: {} chars, {} tokens", snippet.content.len(), snippet.token_count));
-        Self::debug_log(&format!("   Representation type: {}", snippet.metadata.representation_type));
+        Self::debug_log(&format!(
+            "📤 SENDING TO LLM: {} chars, {} tokens",
+            snippet.content.len(),
+            snippet.token_count
+        ));
+        Self::debug_log(&format!(
+            "   Representation type: {}",
+            snippet.metadata.representation_type
+        ));
         Self::debug_log(&format!("   Contract: {}", context.contract_info().name));
         Self::debug_log("   Content preview (first 500 chars):");
         Self::debug_log(&snippet.content.chars().take(500).collect::<String>());
         Self::debug_log("----------------------------------------");
 
         println!("\n======================");
-        println!("📤 SENDING TO LLM ({} chars, {} tokens)", snippet.content.len(), snippet.token_count);
-        println!("Representation type: {}", snippet.metadata.representation_type);
-        println!("Preview (first 500 chars):\n{}", &snippet.content.chars().take(500).collect::<String>());
+        println!(
+            "📤 SENDING TO LLM ({} chars, {} tokens)",
+            snippet.content.len(),
+            snippet.token_count
+        );
+        println!(
+            "Representation type: {}",
+            snippet.metadata.representation_type
+        );
+        println!(
+            "Preview (first 500 chars):\n{}",
+            &snippet.content.chars().take(500).collect::<String>()
+        );
         println!("======================\n");
 
         let response = self.analyze_async(&snippet.content, metadata).await?;
 
-        Self::debug_log(&format!("📥 LLM RETURNED {} FINDINGS", response.findings.len()));
+        Self::debug_log(&format!(
+            "📥 LLM RETURNED {} FINDINGS",
+            response.findings.len()
+        ));
 
         println!("\n======================");
         println!("📥 LLM RETURNED {} FINDINGS", response.findings.len());
@@ -509,14 +530,19 @@ impl LLMScanner {
                     evidence.code_ref.file
                 );
                 Self::debug_log(&log_msg);
-                Self::debug_log(&format!("     Description: {}", evidence.description.chars().take(150).collect::<String>()));
+                Self::debug_log(&format!(
+                    "     Description: {}",
+                    evidence.description.chars().take(150).collect::<String>()
+                ));
 
-                println!("  📍 Evidence {}: line {}-{}",
-                    eidx,
-                    evidence.code_ref.line_start,
-                    evidence.code_ref.line_end
+                println!(
+                    "  📍 Evidence {}: line {}-{}",
+                    eidx, evidence.code_ref.line_start, evidence.code_ref.line_end
                 );
-                println!("     Description: {}", evidence.description.chars().take(150).collect::<String>());
+                println!(
+                    "     Description: {}",
+                    evidence.description.chars().take(150).collect::<String>()
+                );
             }
         }
 

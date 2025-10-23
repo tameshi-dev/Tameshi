@@ -1,6 +1,5 @@
-
-use crate::core::{Scanner, Finding, Severity, Confidence, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
 use tree_sitter::{Node, TreeCursor};
 
@@ -12,24 +11,29 @@ impl SourceClassicReentrancyScanner {
     }
 
     fn is_external_call_text(&self, text: &str) -> bool {
-        text.contains(".call(") ||
-        text.contains(".call{") ||
-        text.contains(".send(") ||
-        text.contains(".transfer(") ||
-        text.contains(".delegatecall(")
+        text.contains(".call(")
+            || text.contains(".call{")
+            || text.contains(".send(")
+            || text.contains(".transfer(")
+            || text.contains(".delegatecall(")
     }
 
     fn is_state_modification_text(&self, text: &str) -> bool {
-        if text.trim_start().starts_with("uint ") ||
-           text.trim_start().starts_with("address ") ||
-           text.trim_start().starts_with("bool ") ||
-           text.trim_start().starts_with("bytes") ||
-           text.trim_start().starts_with("string ") ||
-           text.trim_start().starts_with("int ") {
+        if text.trim_start().starts_with("uint ")
+            || text.trim_start().starts_with("address ")
+            || text.trim_start().starts_with("bool ")
+            || text.trim_start().starts_with("bytes")
+            || text.trim_start().starts_with("string ")
+            || text.trim_start().starts_with("int ")
+        {
             return false;
         }
 
-        if text.contains('=') && !text.contains("==") && !text.contains("!=") && !text.contains("=>") {
+        if text.contains('=')
+            && !text.contains("==")
+            && !text.contains("!=")
+            && !text.contains("=>")
+        {
             let parts: Vec<&str> = text.split('=').collect();
             if parts.is_empty() {
                 return false;
@@ -41,15 +45,23 @@ impl SourceClassicReentrancyScanner {
                 return true;
             }
 
-            if left.contains('.') &&
-               !left.starts_with("msg.") &&
-               !left.starts_with("block.") &&
-               !left.starts_with("tx.") {
+            if left.contains('.')
+                && !left.starts_with("msg.")
+                && !left.starts_with("block.")
+                && !left.starts_with("tx.")
+            {
                 return true;
             }
 
-            if !left.contains('.') && !left.contains('[') && !left.contains('(')
-                && left.chars().next().map(|c| c.is_lowercase()).unwrap_or(false) {
+            if !left.contains('.')
+                && !left.contains('[')
+                && !left.contains('(')
+                && left
+                    .chars()
+                    .next()
+                    .map(|c| c.is_lowercase())
+                    .unwrap_or(false)
+            {
                 return true;
             }
         }
@@ -88,7 +100,6 @@ impl SourceClassicReentrancyScanner {
         } else {
             "unknown"
         };
-
 
         let body = match function_node.child_by_field_name("body") {
             Some(b) => b,
@@ -197,13 +208,15 @@ impl Scanner for SourceClassicReentrancyScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
         let mut parser = tree_sitter::Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
-        parser.set_language(&language)
+        parser
+            .set_language(&language)
             .expect("Failed to load Solidity grammar");
 
         let tree = match parser.parse(source, None) {
@@ -239,7 +252,9 @@ impl SourceClassicReentrancyScanner {
 
         if kind == "contract_declaration" {
             let current_contract = if let Some(name_node) = node.child_by_field_name("name") {
-                name_node.utf8_text(source.as_bytes()).unwrap_or(contract_name)
+                name_node
+                    .utf8_text(source.as_bytes())
+                    .unwrap_or(contract_name)
             } else {
                 contract_name
             };

@@ -67,7 +67,6 @@ pub trait Scanner: Send + Sync {
     }
 }
 
-
 pub trait HybridScanner: Scanner {
     fn analyze_hybrid(&self, context: &AnalysisContext) -> Result<Vec<Finding>>;
 

@@ -3,9 +3,9 @@
 //! This scanner analyzes Solidity source code using tree-sitter queries to detect
 //! unchecked return values from external calls that are lost or incorrectly transformed in IR.
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
-use crate::representations::source::{SourceRepresentation, ExternalCallType};
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
+use crate::representations::source::{ExternalCallType, SourceRepresentation};
 use anyhow::Result;
 
 pub struct SourceUncheckedReturnScanner;
@@ -15,7 +15,11 @@ impl SourceUncheckedReturnScanner {
         Self
     }
 
-    fn analyze_ast(&self, source_repr: &SourceRepresentation, contract_name: &str) -> Result<Vec<Finding>> {
+    fn analyze_ast(
+        &self,
+        source_repr: &SourceRepresentation,
+        contract_name: &str,
+    ) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
 
         let unchecked_calls = source_repr.unchecked_external_calls();
@@ -70,7 +74,10 @@ impl SourceUncheckedReturnScanner {
                     scanner_id.to_string(),
                     Severity::Medium,
                     Confidence::High,
-                    format!("Unchecked {} at line {}", call_type_str, call_info.location.line),
+                    format!(
+                        "Unchecked {} at line {}",
+                        call_type_str, call_info.location.line
+                    ),
                     description,
                 )
                 .with_contract(contract_name)
@@ -80,9 +87,16 @@ impl SourceUncheckedReturnScanner {
                     column: call_info.location.column,
                     end_line: Some(call_info.location.end_line),
                     end_column: Some(call_info.location.end_column),
-                    snippet: Some(call_info.target.lines().take(3).collect::<Vec<_>>().join("\n")),
+                    snippet: Some(
+                        call_info
+                            .target
+                            .lines()
+                            .take(3)
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ),
                     ir_position: None,
-                })
+                }),
             );
         }
 
@@ -126,7 +140,8 @@ impl Scanner for SourceUncheckedReturnScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path
+        let file_path = contract_info
+            .source_path
             .as_deref()
             .unwrap_or("unknown.sol");
 
@@ -158,7 +173,10 @@ mod tests {
         let scanner = SourceUncheckedReturnScanner::new();
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
-        assert!(result.len() >= 1, "Expected at least 1 finding for unchecked ERC20 transfer");
+        assert!(
+            result.len() >= 1,
+            "Expected at least 1 finding for unchecked ERC20 transfer"
+        );
         assert!(result.iter().any(|f| f.description.contains("ERC20")));
     }
 
@@ -194,7 +212,10 @@ mod tests {
         let scanner = SourceUncheckedReturnScanner::new();
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
-        assert!(result.len() >= 1, "Expected at least 1 finding for unchecked low-level call");
+        assert!(
+            result.len() >= 1,
+            "Expected at least 1 finding for unchecked low-level call"
+        );
         assert!(result.iter().any(|f| f.description.contains("low-level")));
     }
 

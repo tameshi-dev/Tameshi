@@ -1,6 +1,6 @@
 use crate::representations::{Representation, Visitable};
-use thalir_core::contract::Contract as IRContract;
 use std::any::Any;
+use thalir_core::contract::Contract as IRContract;
 
 impl Representation for IRContract {
     type Id = String; // Contract name as ID
@@ -33,8 +33,7 @@ pub trait CraneliftVisitor {
         }
     }
 
-    fn visit_instruction(&mut self, _instruction: &thalir_core::instructions::Instruction) {
-    }
+    fn visit_instruction(&mut self, _instruction: &thalir_core::instructions::Instruction) {}
 }
 
 impl Visitable for IRContract {

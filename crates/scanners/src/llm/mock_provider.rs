@@ -1,7 +1,7 @@
 use crate::llm::{
     provider::{LLMError, LLMProvider, LLMRequest, LLMResponse, TokenUsage},
     schemas::{
-        CodeLocation, ComponentRef, Confidence as LLMConfidence, ScannerResponse, Evidence,
+        CodeLocation, ComponentRef, Confidence as LLMConfidence, Evidence, ScannerResponse,
         SeverityLevel, VulnerabilityFinding,
     },
 };

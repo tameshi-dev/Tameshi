@@ -2,40 +2,24 @@
 #![allow(unused_imports, dead_code)]
 
 use crate::{
-    SourceLoopReentrancyScanner,
-    SourceClassicReentrancyScanner,
-    SourceIntegerOverflowScanner,
-    SourceAccessControlScanner,
-    SourceUncheckedReturnScanner,
-    SourceDangerousFunctionsScanner,
-    SourceTimeVulnerabilitiesScanner,
-    SourceDoSVulnerabilitiesScanner,
-    SourceMissingAccessControlScanner,
-    SourceGasLimitDoSScanner,
-    SourceDelegatecallScanner,
-    SourceUncheckedOverflowScanner,
-    SimpleTimestampScanner,
-    ASTDoSVulnerabilitiesScanner,
-    get_functions_with_modifiers,
+    get_functions_with_modifiers, ASTDoSVulnerabilitiesScanner, SimpleTimestampScanner,
+    SourceAccessControlScanner, SourceClassicReentrancyScanner, SourceDangerousFunctionsScanner,
+    SourceDelegatecallScanner, SourceDoSVulnerabilitiesScanner, SourceGasLimitDoSScanner,
+    SourceIntegerOverflowScanner, SourceLoopReentrancyScanner, SourceMissingAccessControlScanner,
+    SourceTimeVulnerabilitiesScanner, SourceUncheckedOverflowScanner, SourceUncheckedReturnScanner,
 };
 
 use crate::source::{
-    SourceLoopReentrancyScanner as LoopScanner1,
-    SourceClassicReentrancyScanner as ClassicScanner1,
+    SourceClassicReentrancyScanner as ClassicScanner1, SourceLoopReentrancyScanner as LoopScanner1,
 };
 
 use crate::source::{
-    SourceLoopReentrancyScanner as LoopScanner2,
-    SourceClassicReentrancyScanner as ClassicScanner2,
-    loop_reentrancy::SourceLoopReentrancyScanner as LoopScanner3,
     classic_reentrancy::SourceClassicReentrancyScanner as ClassicScanner3,
+    loop_reentrancy::SourceLoopReentrancyScanner as LoopScanner3,
+    SourceClassicReentrancyScanner as ClassicScanner2, SourceLoopReentrancyScanner as LoopScanner2,
 };
 
-use crate::{
-    IRReentrancyScanner,
-    IRAccessControlScanner,
-    IRUncheckedReturnScanner,
-};
+use crate::{IRAccessControlScanner, IRReentrancyScanner, IRUncheckedReturnScanner};
 
 #[test]
 fn test_all_import_paths_compile() {

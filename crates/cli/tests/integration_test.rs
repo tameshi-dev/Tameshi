@@ -55,7 +55,6 @@ fn test_full_pipeline_command() {
     );
 }
 
-
 #[test]
 fn test_transform_sol2ir_command() {
     let temp_dir = TempDir::new().unwrap();

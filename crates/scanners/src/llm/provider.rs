@@ -9,8 +9,8 @@ use async_openai::{
     Client,
 };
 use async_trait::async_trait;
-use thiserror::Error;
 use std::time::Duration;
+use thiserror::Error;
 use tracing::{debug, error, warn};
 
 #[derive(Debug, Error)]
@@ -111,12 +111,12 @@ impl OpenAIProvider {
             max_retries: 3,
         }
     }
-    
+
     fn extract_json_from_text(text: &str) -> Result<String, LLMError> {
-        
         if let Some(start) = text.find("```json") {
             if let Some(end) = text[start..].find("```").and_then(|i| {
-                if i > 7 { // Make sure it's not the opening ```json
+                if i > 7 {
+                    // Make sure it's not the opening ```json
                     Some(start + i)
                 } else {
                     text[start + 7..].find("```").map(|j| start + 7 + j)
@@ -127,21 +127,21 @@ impl OpenAIProvider {
                 return Ok(json_str.to_string());
             }
         }
-        
+
         if let Some(start) = text.find('{') {
             let mut depth = 0;
             let mut in_string = false;
             let mut escape_next = false;
-            
+
             let bytes = text.as_bytes();
             let mut end = start;
-            
+
             for (i, &byte) in bytes[start..].iter().enumerate() {
                 if escape_next {
                     escape_next = false;
                     continue;
                 }
-                
+
                 match byte {
                     b'\\' if in_string => escape_next = true,
                     b'"' => in_string = !in_string,
@@ -156,14 +156,14 @@ impl OpenAIProvider {
                     _ => {}
                 }
             }
-            
+
             if end > start {
                 let json_str = &text[start..end];
                 debug!("Found raw JSON object: {}", json_str);
                 return Ok(json_str.to_string());
             }
         }
-        
+
         warn!("Could not extract JSON from response, returning full text");
         Ok(text.to_string())
     }
@@ -175,7 +175,7 @@ impl LLMProvider for OpenAIProvider {
         let is_reasoning_model = self.model.starts_with("o1")
             || self.model.starts_with("o2")
             || self.model.starts_with("o3");
-        
+
         let temperature = if request.temperature > 0.0 {
             request.temperature
         } else {
@@ -193,7 +193,11 @@ impl LLMProvider for OpenAIProvider {
         debug!("Is reasoning model: {}", is_reasoning_model);
 
         if request.dump_prompt {
-            println!("\n🔍 {} COMPLETE PROMPT DUMP {}", "=".repeat(25), "=".repeat(25));
+            println!(
+                "\n🔍 {} COMPLETE PROMPT DUMP {}",
+                "=".repeat(25),
+                "=".repeat(25)
+            );
             println!("🤖 Model: {}", self.model);
             println!("🌡️  Temperature: {}", temperature);
             println!("📏 Max Tokens: {}", max_tokens);
@@ -209,17 +213,16 @@ impl LLMProvider for OpenAIProvider {
         let messages = if is_reasoning_model {
             let combined_prompt = format!(
                 "Instructions:\n{}\n\nTask:\n{}",
-                request.system_prompt,
-                request.user_prompt
+                request.system_prompt, request.user_prompt
             );
-            
+
             let user_message = ChatCompletionRequestUserMessage {
                 content: async_openai::types::ChatCompletionRequestUserMessageContent::Text(
                     combined_prompt,
                 ),
                 ..Default::default()
             };
-            
+
             vec![ChatCompletionRequestMessage::User(user_message)]
         } else {
             let system_message = ChatCompletionRequestSystemMessage {
@@ -244,8 +247,6 @@ impl LLMProvider for OpenAIProvider {
         request_builder.model(&self.model).messages(messages);
 
         if is_reasoning_model {
-
-
             debug!("Using reasoning model configuration (no temperature, no JSON format)");
         } else {
             request_builder
@@ -329,7 +330,10 @@ impl LLMProvider for OpenAIProvider {
     }
 
     fn max_tokens(&self) -> usize {
-        if self.model.starts_with("o1") || self.model.starts_with("o2") || self.model.starts_with("o3") {
+        if self.model.starts_with("o1")
+            || self.model.starts_with("o2")
+            || self.model.starts_with("o3")
+        {
             return 200000; // Reasoning models typically have 200K context
         }
 

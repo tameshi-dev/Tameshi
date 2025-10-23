@@ -113,7 +113,7 @@ impl SoliditySourceExtractor {
 
                 result.push(format!("// Line {}", i + 1));
                 for line in lines.iter().take(end).skip(start) {
-                result.push(line.to_string());
+                    result.push(line.to_string());
                 }
                 result.push("".to_string());
             }
@@ -351,12 +351,8 @@ impl RepresentationExtractor for SoliditySourceExtractor {
                     result.join("\n")
                 }
             }
-            Focus::Region(_) => {
-                processed.clone()
-            }
-            Focus::Multiple(_) => {
-                processed.clone()
-            }
+            Focus::Region(_) => processed.clone(),
+            Focus::Multiple(_) => processed.clone(),
         };
 
         let token_count = self.estimate_tokens(&focused);

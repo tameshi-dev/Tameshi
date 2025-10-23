@@ -6,8 +6,8 @@
 //! - ERC721 NFT transfers (onERC721Received)
 //! - ERC1155 token transfers (onERC1155Received, onERC1155BatchReceived)
 
-use thalir_core::instructions::{Instruction, CallTarget};
 use std::collections::HashSet;
+use thalir_core::instructions::{CallTarget, Instruction};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CallbackType {
@@ -36,7 +36,9 @@ impl CallbackType {
             "onERC721Received",
             "onERC1155Received",
             "onERC1155BatchReceived",
-        ].into_iter().collect()
+        ]
+        .into_iter()
+        .collect()
     }
 }
 
@@ -48,7 +50,11 @@ pub struct CallbackTrigger {
 }
 
 impl CallbackTrigger {
-    pub fn new(interface: impl Into<String>, function: impl Into<String>, callback_type: CallbackType) -> Self {
+    pub fn new(
+        interface: impl Into<String>,
+        function: impl Into<String>,
+        callback_type: CallbackType,
+    ) -> Self {
         Self {
             interface: interface.into(),
             function: function.into(),
@@ -59,14 +65,24 @@ impl CallbackTrigger {
     pub fn known_triggers() -> Vec<CallbackTrigger> {
         vec![
             CallbackTrigger::new("IERC777", "send", CallbackType::ERC777TokensReceived),
-            CallbackTrigger::new("IERC777", "operatorSend", CallbackType::ERC777TokensReceived),
+            CallbackTrigger::new(
+                "IERC777",
+                "operatorSend",
+                CallbackType::ERC777TokensReceived,
+            ),
             CallbackTrigger::new("IERC777", "burn", CallbackType::ERC777TokensToSend),
             CallbackTrigger::new("IERC777", "operatorBurn", CallbackType::ERC777TokensToSend),
-
             CallbackTrigger::new("IERC721", "safeTransferFrom", CallbackType::ERC721Received),
-
-            CallbackTrigger::new("IERC1155", "safeTransferFrom", CallbackType::ERC1155Received),
-            CallbackTrigger::new("IERC1155", "safeBatchTransferFrom", CallbackType::ERC1155BatchReceived),
+            CallbackTrigger::new(
+                "IERC1155",
+                "safeTransferFrom",
+                CallbackType::ERC1155Received,
+            ),
+            CallbackTrigger::new(
+                "IERC1155",
+                "safeBatchTransferFrom",
+                CallbackType::ERC1155BatchReceived,
+            ),
         ]
     }
 }
@@ -146,10 +162,10 @@ impl HookAnalyzer {
                     }
                 }
 
-                target_str.contains("transfer") ||
-                target_str.contains("send") ||
-                target_str.contains("mint") ||
-                target_str.contains("burn")
+                target_str.contains("transfer")
+                    || target_str.contains("send")
+                    || target_str.contains("mint")
+                    || target_str.contains("burn")
             }
             _ => false,
         }
@@ -163,14 +179,13 @@ impl Default for HookAnalyzer {
 }
 
 pub fn is_erc777_hook(function_name: &str) -> bool {
-    function_name.starts_with("tokensReceived") ||
-    function_name.starts_with("tokensToSend")
+    function_name.starts_with("tokensReceived") || function_name.starts_with("tokensToSend")
 }
 
 pub fn is_nft_hook(function_name: &str) -> bool {
-    function_name.starts_with("onERC721Received") ||
-    function_name.starts_with("onERC1155Received") ||
-    function_name.starts_with("onERC1155BatchReceived")
+    function_name.starts_with("onERC721Received")
+        || function_name.starts_with("onERC1155Received")
+        || function_name.starts_with("onERC1155BatchReceived")
 }
 
 pub fn is_callback_hook(function_name: &str) -> bool {
@@ -183,8 +198,14 @@ mod tests {
 
     #[test]
     fn test_callback_type_function_names() {
-        assert_eq!(CallbackType::ERC777TokensReceived.function_name(), "tokensReceived");
-        assert_eq!(CallbackType::ERC721Received.function_name(), "onERC721Received");
+        assert_eq!(
+            CallbackType::ERC777TokensReceived.function_name(),
+            "tokensReceived"
+        );
+        assert_eq!(
+            CallbackType::ERC721Received.function_name(),
+            "onERC721Received"
+        );
     }
 
     #[test]
@@ -223,7 +244,9 @@ mod tests {
     fn test_is_erc777_hook() {
         assert!(is_erc777_hook("tokensReceived"));
         assert!(is_erc777_hook("tokensToSend"));
-        assert!(is_erc777_hook("tokensReceived_address_address_uint256_bytes_bytes"));
+        assert!(is_erc777_hook(
+            "tokensReceived_address_address_uint256_bytes_bytes"
+        ));
         assert!(!is_erc777_hook("transfer"));
     }
 

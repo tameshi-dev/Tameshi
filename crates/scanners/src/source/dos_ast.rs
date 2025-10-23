@@ -3,9 +3,9 @@
 //! This scanner uses tree-sitter AST representations instead of regex patterns,
 //! providing more accurate and reliable vulnerability detection.
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
-use crate::representations::source::{SourceRepresentation, LoopType, ExternalCallType};
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
+use crate::representations::source::{ExternalCallType, LoopType, SourceRepresentation};
 use anyhow::Result;
 
 pub struct ASTDoSVulnerabilitiesScanner;
@@ -24,13 +24,15 @@ impl ASTDoSVulnerabilitiesScanner {
                     "dos-external-call-loop-ast".to_string(),
                     Severity::High,
                     Confidence::High,
-                    format!("External call in {} loop at line {}",
-                           match loop_info.loop_type {
-                               LoopType::For => "for",
-                               LoopType::While => "while",
-                               LoopType::DoWhile => "do-while",
-                           },
-                           loop_info.location.line),
+                    format!(
+                        "External call in {} loop at line {}",
+                        match loop_info.loop_type {
+                            LoopType::For => "for",
+                            LoopType::While => "while",
+                            LoopType::DoWhile => "do-while",
+                        },
+                        loop_info.location.line
+                    ),
                     format!(
                         "Contract '{}' has external call in loop. \
                         If one call fails, the entire transaction reverts causing DoS. \
@@ -45,9 +47,16 @@ impl ASTDoSVulnerabilitiesScanner {
                     column: loop_info.location.column,
                     end_line: Some(loop_info.location.end_line),
                     end_column: Some(loop_info.location.end_column),
-                    snippet: Some(loop_info.body.lines().take(3).collect::<Vec<_>>().join("\n")),
+                    snippet: Some(
+                        loop_info
+                            .body
+                            .lines()
+                            .take(3)
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    ),
                     ir_position: None,
-                })
+                }),
             );
         }
 
@@ -58,7 +67,10 @@ impl ASTDoSVulnerabilitiesScanner {
                         "dos-gas-limit-loop-ast".to_string(),
                         Severity::High,
                         Confidence::High,
-                        format!("Gas limit DoS - unbounded loop at line {}", loop_info.location.line),
+                        format!(
+                            "Gas limit DoS - unbounded loop at line {}",
+                            loop_info.location.line
+                        ),
                         format!(
                             "Contract '{}' has unbounded loop with storage operations. \
                             Large arrays can cause out-of-gas errors. \
@@ -73,9 +85,16 @@ impl ASTDoSVulnerabilitiesScanner {
                         column: loop_info.location.column,
                         end_line: Some(loop_info.location.end_line),
                         end_column: Some(loop_info.location.end_column),
-                        snippet: Some(loop_info.body.lines().take(3).collect::<Vec<_>>().join("\n")),
+                        snippet: Some(
+                            loop_info
+                                .body
+                                .lines()
+                                .take(3)
+                                .collect::<Vec<_>>()
+                                .join("\n"),
+                        ),
                         ir_position: None,
-                    })
+                    }),
                 );
             }
 
@@ -99,25 +118,26 @@ impl ASTDoSVulnerabilitiesScanner {
                         column: loop_info.location.column,
                         end_line: Some(loop_info.location.end_line),
                         end_column: Some(loop_info.location.end_column),
-                        snippet: Some(format!("{} loop: {}",
-                                             match loop_info.loop_type {
-                                                 LoopType::For => "for",
-                                                 LoopType::While => "while",
-                                                 LoopType::DoWhile => "do-while",
-                                             },
-                                             loop_info.condition)),
+                        snippet: Some(format!(
+                            "{} loop: {}",
+                            match loop_info.loop_type {
+                                LoopType::For => "for",
+                                LoopType::While => "while",
+                                LoopType::DoWhile => "do-while",
+                            },
+                            loop_info.condition
+                        )),
                         ir_position: None,
-                    })
+                    }),
                 );
             }
         }
 
         for call_info in source_repr.unchecked_external_calls() {
-            if matches!(call_info.call_type,
-                       ExternalCallType::Call |
-                       ExternalCallType::DelegateCall |
-                       ExternalCallType::Send) {
-
+            if matches!(
+                call_info.call_type,
+                ExternalCallType::Call | ExternalCallType::DelegateCall | ExternalCallType::Send
+            ) {
                 let parent_has_require = call_info.target.contains("require");
 
                 if parent_has_require {
@@ -126,7 +146,10 @@ impl ASTDoSVulnerabilitiesScanner {
                             "dos-require-external-call-ast".to_string(),
                             Severity::Medium,
                             Confidence::High,
-                            format!("DoS via require on external call at line {}", call_info.location.line),
+                            format!(
+                                "DoS via require on external call at line {}",
+                                call_info.location.line
+                            ),
                             format!(
                                 "Contract '{}' uses require with external call. \
                                 Failed calls will revert, causing DoS.",
@@ -142,7 +165,7 @@ impl ASTDoSVulnerabilitiesScanner {
                             end_column: Some(call_info.location.end_column),
                             snippet: Some(call_info.target.clone()),
                             ir_position: None,
-                        })
+                        }),
                     );
                 }
             }
@@ -188,7 +211,10 @@ impl Scanner for ASTDoSVulnerabilitiesScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path.as_deref().unwrap_or("unknown.sol");
+        let file_path = contract_info
+            .source_path
+            .as_deref()
+            .unwrap_or("unknown.sol");
 
         let source_repr = SourceRepresentation::from_source(source, file_path, contract_name)?;
 
@@ -239,9 +265,17 @@ mod tests {
         }
         eprintln!("Total findings: {}", findings.len());
 
-        assert!(findings.len() >= 2, "Expected at least 2 findings, got {}", findings.len());
-        assert!(findings.iter().any(|f| f.scanner_id == "dos-external-call-loop-ast"));
-        assert!(findings.iter().any(|f| f.scanner_id == "dos-unbounded-loop-ast"));
+        assert!(
+            findings.len() >= 2,
+            "Expected at least 2 findings, got {}",
+            findings.len()
+        );
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "dos-external-call-loop-ast"));
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "dos-unbounded-loop-ast"));
     }
 
     #[test]
@@ -276,6 +310,8 @@ mod tests {
         let scanner = ASTDoSVulnerabilitiesScanner::new();
         let findings = scanner.scan(&context).unwrap();
 
-        assert!(findings.iter().any(|f| f.scanner_id == "dos-gas-limit-loop-ast"));
+        assert!(findings
+            .iter()
+            .any(|f| f.scanner_id == "dos-gas-limit-loop-ast"));
     }
 }

@@ -13,8 +13,4 @@ pub mod suite;
 
 pub use llm_comprehensive_scanner::LLMComprehensiveScanner;
 
-pub use suite::{
-    LLMScannerSuite,
-    LLMScannerSuiteBuilder,
-    create_llm_scanner_suite,
-};
+pub use suite::{create_llm_scanner_suite, LLMScannerSuite, LLMScannerSuiteBuilder};

@@ -3,11 +3,11 @@
 //! This scanner analyzes Solidity source code using tree-sitter queries to detect
 //! dangerous function calls that are lost or incorrectly transformed in IR.
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
 use crate::core::result::Location;
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use anyhow::Result;
-use tree_sitter::{Parser, Query, QueryCursor};
 use streaming_iterator::StreamingIterator;
+use tree_sitter::{Parser, Query, QueryCursor};
 
 pub struct SourceDangerousFunctionsScanner;
 
@@ -16,12 +16,18 @@ impl SourceDangerousFunctionsScanner {
         Self
     }
 
-    fn analyze_ast(&self, source: &str, contract_name: &str, file_path: &str) -> Result<Vec<Finding>> {
+    fn analyze_ast(
+        &self,
+        source: &str,
+        contract_name: &str,
+        file_path: &str,
+    ) -> Result<Vec<Finding>> {
         let mut parser = Parser::new();
         let language = tree_sitter_solidity::LANGUAGE.into();
         parser.set_language(&language)?;
 
-        let tree = parser.parse(source, None)
+        let tree = parser
+            .parse(source, None)
             .ok_or_else(|| anyhow::anyhow!("Failed to parse source"))?;
 
         let root = tree.root_node();
@@ -106,7 +112,10 @@ impl SourceDangerousFunctionsScanner {
                 let asm_node = capture.node;
                 let asm_text = &source[asm_node.byte_range()];
 
-                if asm_text.contains("selfdestruct") || asm_text.contains("delegatecall") || asm_text.contains("callcode") {
+                if asm_text.contains("selfdestruct")
+                    || asm_text.contains("delegatecall")
+                    || asm_text.contains("callcode")
+                {
                     let start_pos = asm_node.start_position();
                     findings.push(
                         Finding::new(
@@ -177,7 +186,10 @@ impl Scanner for SourceDangerousFunctionsScanner {
         };
 
         let contract_name = &contract_info.name;
-        let file_path = contract_info.source_path.as_deref().unwrap_or("unknown.sol");
+        let file_path = contract_info
+            .source_path
+            .as_deref()
+            .unwrap_or("unknown.sol");
 
         self.analyze_ast(source, contract_name, file_path)
     }
@@ -241,6 +253,8 @@ mod tests {
         let result = scanner.analyze_ast(source, "Test", "test.sol").unwrap();
 
         assert!(result.len() >= 1);
-        assert!(result.iter().any(|f| f.description.contains("callcode") || f.description.contains("assembly")));
+        assert!(result
+            .iter()
+            .any(|f| f.description.contains("callcode") || f.description.contains("assembly")));
     }
 }

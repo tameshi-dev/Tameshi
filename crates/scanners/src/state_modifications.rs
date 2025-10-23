@@ -1,6 +1,7 @@
 //! State modification analysis Scanner
 
 use crate::core::{Confidence, Finding, Severity};
+use anyhow::Result;
 use thalir_core::{
     analysis::{
         cursor::ScannerCursor,
@@ -9,7 +10,6 @@ use thalir_core::{
     contract::Contract,
     instructions::Instruction,
 };
-use anyhow::Result;
 
 pub struct IRStateModificationScanner {
     findings: Vec<Finding>,
@@ -21,14 +21,14 @@ impl IRStateModificationScanner {
             findings: Vec::new(),
         }
     }
-    
+
     pub fn get_findings(&self) -> Vec<Finding> {
         self.findings.clone()
     }
-    
+
     pub fn analyze(&mut self, contract: &Contract) -> Result<Vec<Finding>> {
         self.findings.clear();
-        
+
         for (func_name, function) in &contract.functions {
             let mut cursor = ScannerCursor::at_entry(function);
             let mut state_mod_count = 0;
@@ -39,9 +39,9 @@ impl IRStateModificationScanner {
 
                 for (idx, instruction) in block.instructions.iter().enumerate() {
                     match instruction {
-                        Instruction::StorageStore { .. } |
-                        Instruction::MappingStore { .. } |
-                        Instruction::ArrayStore { .. } => {
+                        Instruction::StorageStore { .. }
+                        | Instruction::MappingStore { .. }
+                        | Instruction::ArrayStore { .. } => {
                             if first_mod_location.is_none() {
                                 first_mod_location = Some((block_id, idx));
                             }
@@ -55,10 +55,7 @@ impl IRStateModificationScanner {
             if state_mod_count > 10 {
                 if let Some((block_id, idx)) = first_mod_location {
                     let location = super::provenance::get_instruction_location(
-                        contract,
-                        func_name,
-                        block_id,
-                        idx,
+                        contract, func_name, block_id, idx,
                     );
 
                     self.findings.push(Finding::new(
@@ -77,7 +74,7 @@ impl IRStateModificationScanner {
                 }
             }
         }
-        
+
         Ok(self.findings.clone())
     }
 }
@@ -86,16 +83,20 @@ impl Pass for IRStateModificationScanner {
     fn name(&self) -> &'static str {
         "ir-state-mods"
     }
-    
-    fn run_on_contract(&mut self, contract: &mut Contract, _manager: &mut PassManager) -> Result<()> {
+
+    fn run_on_contract(
+        &mut self,
+        contract: &mut Contract,
+        _manager: &mut PassManager,
+    ) -> Result<()> {
         self.analyze(contract)?;
         Ok(())
     }
-    
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }

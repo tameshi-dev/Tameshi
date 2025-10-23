@@ -6,14 +6,11 @@
 //! - State flow through call chains
 //! - Call depth analysis
 
-use thalir_core::{
-    contract::Contract,
-    function::Function,
-    instructions::Instruction,
-    block::BlockId,
-};
-use std::collections::{HashMap, HashSet, VecDeque};
 use super::name_resolution::canonical_match;
+use std::collections::{HashMap, HashSet, VecDeque};
+use thalir_core::{
+    block::BlockId, contract::Contract, function::Function, instructions::Instruction,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionCall {
@@ -217,11 +214,7 @@ impl CallGraphBuilder {
                             .or_default()
                             .push(call.clone());
 
-                        self.graph
-                            .callers
-                            .entry(callee)
-                            .or_default()
-                            .push(call);
+                        self.graph.callers.entry(callee).or_default().push(call);
                     }
 
                     Instruction::DelegateCall { target, .. } => {
@@ -241,11 +234,7 @@ impl CallGraphBuilder {
                             .or_default()
                             .push(call.clone());
 
-                        self.graph
-                            .callers
-                            .entry(callee)
-                            .or_default()
-                            .push(call);
+                        self.graph.callers.entry(callee).or_default().push(call);
                     }
 
                     _ => {}
@@ -254,7 +243,11 @@ impl CallGraphBuilder {
         }
     }
 
-    fn extract_call_target(&self, target: &thalir_core::instructions::CallTarget, contract: &Contract) -> (String, bool) {
+    fn extract_call_target(
+        &self,
+        target: &thalir_core::instructions::CallTarget,
+        contract: &Contract,
+    ) -> (String, bool) {
         match target {
             thalir_core::instructions::CallTarget::Internal(name) => {
                 for func_name in contract.functions.keys() {
@@ -329,25 +322,27 @@ mod tests {
         graph.functions.insert("B".to_string());
         graph.functions.insert("C".to_string());
 
-        graph.callees.insert("A".to_string(), vec![
-            FunctionCall {
+        graph.callees.insert(
+            "A".to_string(),
+            vec![FunctionCall {
                 caller: "A".to_string(),
                 callee: "B".to_string(),
                 call_site_block: BlockId(0),
                 call_site_index: 0,
                 is_external: false,
-            }
-        ]);
+            }],
+        );
 
-        graph.callees.insert("B".to_string(), vec![
-            FunctionCall {
+        graph.callees.insert(
+            "B".to_string(),
+            vec![FunctionCall {
                 caller: "B".to_string(),
                 callee: "C".to_string(),
                 call_site_block: BlockId(0),
                 call_site_index: 0,
                 is_external: false,
-            }
-        ]);
+            }],
+        );
 
         let reachable = graph.get_reachable_functions("A");
         assert!(reachable.contains("A"));

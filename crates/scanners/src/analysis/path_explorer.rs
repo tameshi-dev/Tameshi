@@ -12,12 +12,12 @@
 //! balances[msg.sender] = 0; // state modification on any path
 //! ```
 
+use std::collections::{HashSet, VecDeque};
 use thalir_core::{
+    block::{BlockId, Terminator},
     function::Function,
     instructions::Instruction,
-    block::{BlockId, Terminator},
 };
-use std::collections::{HashSet, VecDeque};
 
 const MAX_PATH_LENGTH: usize = 20;
 
@@ -70,9 +70,7 @@ pub struct PathExplorer {
 
 impl PathExplorer {
     pub fn new() -> Self {
-        Self {
-            paths: Vec::new(),
-        }
+        Self { paths: Vec::new() }
     }
 
     pub fn explore_function(&mut self, function: &Function) -> Vec<CFGPath> {
@@ -128,7 +126,10 @@ impl PathExplorer {
     }
 
     fn find_entry_block(&self, function: &Function) -> BlockId {
-        function.body.blocks.keys()
+        function
+            .body
+            .blocks
+            .keys()
             .min()
             .copied()
             .unwrap_or(BlockId(0))
@@ -136,7 +137,11 @@ impl PathExplorer {
 
     fn get_successors(&self, terminator: &Terminator) -> Vec<BlockId> {
         match terminator {
-            Terminator::Branch { then_block, else_block, .. } => {
+            Terminator::Branch {
+                then_block,
+                else_block,
+                ..
+            } => {
                 vec![*then_block, *else_block]
             }
             Terminator::Jump(target, _) => {
@@ -147,7 +152,10 @@ impl PathExplorer {
                 successors.extend(cases.iter().map(|(_, target)| *target));
                 successors
             }
-            Terminator::Return(_) | Terminator::Revert(_) | Terminator::Panic(_) | Terminator::Invalid => {
+            Terminator::Return(_)
+            | Terminator::Revert(_)
+            | Terminator::Panic(_)
+            | Terminator::Invalid => {
                 vec![] // No successors - function exits
             }
         }
@@ -156,11 +164,15 @@ impl PathExplorer {
     pub fn find_conditional_reentrancy(&self) -> Vec<ConditionalReentrancyPattern> {
         let mut patterns = Vec::new();
 
-        let call_paths: Vec<_> = self.paths.iter()
+        let call_paths: Vec<_> = self
+            .paths
+            .iter()
             .filter(|p| !p.external_calls.is_empty())
             .collect();
 
-        let state_mod_paths: Vec<_> = self.paths.iter()
+        let state_mod_paths: Vec<_> = self
+            .paths
+            .iter()
             .filter(|p| !p.state_modifications.is_empty())
             .collect();
 
@@ -250,7 +262,10 @@ impl PathExplorer {
         }
     }
 
-    fn deduplicate_patterns(&self, patterns: Vec<ConditionalReentrancyPattern>) -> Vec<ConditionalReentrancyPattern> {
+    fn deduplicate_patterns(
+        &self,
+        patterns: Vec<ConditionalReentrancyPattern>,
+    ) -> Vec<ConditionalReentrancyPattern> {
         let mut seen = HashSet::new();
         let mut unique = Vec::new();
 
@@ -276,10 +291,11 @@ impl PathExplorer {
     }
 
     fn is_state_modification(inst: &Instruction) -> bool {
-        matches!(inst,
-            Instruction::StorageStore { .. } |
-            Instruction::MappingStore { .. } |
-            Instruction::ArrayStore { .. }
+        matches!(
+            inst,
+            Instruction::StorageStore { .. }
+                | Instruction::MappingStore { .. }
+                | Instruction::ArrayStore { .. }
         )
     }
 

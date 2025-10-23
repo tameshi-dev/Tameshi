@@ -1,5 +1,5 @@
+use crate::llm::provider::{LLMProvider as LLMProviderTrait, LLMRequest, OpenAIProvider};
 use anyhow::Result;
-use crate::llm::provider::{OpenAIProvider, LLMProvider as LLMProviderTrait, LLMRequest};
 
 pub struct LLMProvider {
     provider: OpenAIProvider,
@@ -7,8 +7,7 @@ pub struct LLMProvider {
 
 impl LLMProvider {
     pub fn new(model: String) -> Self {
-        let provider = OpenAIProvider::new(Some(model))
-            .expect("Failed to create OpenAI provider");
+        let provider = OpenAIProvider::new(Some(model)).expect("Failed to create OpenAI provider");
         Self { provider }
     }
 

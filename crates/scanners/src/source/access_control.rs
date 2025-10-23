@@ -5,7 +5,7 @@
 //! It helps reduce false positives by identifying functions that DO have proper
 //! access control via modifiers.
 
-use crate::core::{Confidence, Finding, Severity, Scanner, AnalysisContext};
+use crate::core::{AnalysisContext, Confidence, Finding, Scanner, Severity};
 use crate::representations::source::SourceRepresentation;
 use anyhow::Result;
 use std::collections::HashMap;
@@ -17,29 +17,45 @@ impl SourceAccessControlScanner {
         Self
     }
 
-    fn analyze_ast(&self, source_repr: &SourceRepresentation) -> Result<HashMap<String, Vec<String>>> {
+    fn analyze_ast(
+        &self,
+        source_repr: &SourceRepresentation,
+    ) -> Result<HashMap<String, Vec<String>>> {
         let mut function_modifiers: HashMap<String, Vec<String>> = HashMap::new();
 
         #[cfg(test)]
         {
             eprintln!("Modifiers found in contract:");
             for (mod_name, mod_info) in &source_repr.modifiers {
-                eprintln!("  {} -> is_access_control: {}", mod_name, mod_info.is_access_control);
+                eprintln!(
+                    "  {} -> is_access_control: {}",
+                    mod_name, mod_info.is_access_control
+                );
             }
         }
 
         for (func_name, func_info) in &source_repr.functions {
             #[cfg(test)]
-            eprintln!("Function {}: modifiers = {:?}", func_name, func_info.modifiers);
+            eprintln!(
+                "Function {}: modifiers = {:?}",
+                func_name, func_info.modifiers
+            );
 
-            let access_control_modifiers: Vec<String> = func_info.modifiers.iter()
+            let access_control_modifiers: Vec<String> = func_info
+                .modifiers
+                .iter()
                 .filter(|modifier_name| {
-                    let is_ac = source_repr.modifiers.get(modifier_name.as_str())
+                    let is_ac = source_repr
+                        .modifiers
+                        .get(modifier_name.as_str())
                         .map(|m| m.is_access_control)
                         .unwrap_or(false);
 
                     #[cfg(test)]
-                    eprintln!("  Checking modifier '{}': is_access_control = {}", modifier_name, is_ac);
+                    eprintln!(
+                        "  Checking modifier '{}': is_access_control = {}",
+                        modifier_name, is_ac
+                    );
 
                     is_ac
                 })
@@ -75,7 +91,7 @@ impl Scanner for SourceAccessControlScanner {
     }
 
     fn severity(&self) -> Severity {
-        Severity::Low  // This scanner is for reducing false positives, not finding new issues
+        Severity::Low // This scanner is for reducing false positives, not finding new issues
     }
 
     fn confidence(&self) -> Confidence {
@@ -91,8 +107,12 @@ impl Scanner for SourceAccessControlScanner {
     }
 }
 
-pub fn get_functions_with_modifiers(source: &str, contract_name: &str) -> HashMap<String, Vec<String>> {
-    let source_repr = match SourceRepresentation::from_source(source, "unknown.sol", contract_name) {
+pub fn get_functions_with_modifiers(
+    source: &str,
+    contract_name: &str,
+) -> HashMap<String, Vec<String>> {
+    let source_repr = match SourceRepresentation::from_source(source, "unknown.sol", contract_name)
+    {
         Ok(repr) => repr,
         Err(_) => return HashMap::new(),
     };

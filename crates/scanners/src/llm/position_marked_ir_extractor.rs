@@ -1,4 +1,5 @@
 use anyhow::Result;
+use std::fmt::Write;
 use thalir_core::{
     block::{BasicBlock, Terminator},
     contract::Contract as IRContract,
@@ -6,7 +7,6 @@ use thalir_core::{
     values::Value,
     Function,
 };
-use std::fmt::Write;
 
 use super::representation::{
     RepresentationConfig, RepresentationExtractor, RepresentationSnippet, SnippetMetadata,
@@ -55,8 +55,15 @@ impl PositionMarkedIRExtractor {
         let mut token_count = 0;
         let mut was_truncated = false;
 
-        writeln!(output, "# Position-Marked IR Analysis for Contract: {}", contract.name)?;
-        writeln!(output, "## IMPORTANT: Position markers [N] indicate temporal ordering")?;
+        writeln!(
+            output,
+            "# Position-Marked IR Analysis for Contract: {}",
+            contract.name
+        )?;
+        writeln!(
+            output,
+            "## IMPORTANT: Position markers [N] indicate temporal ordering"
+        )?;
         writeln!(output, "## For reentrancy: External call at [X] before state write at [Y] where X < Y = VULNERABLE\n")?;
 
         for (_name, func) in &contract.functions {
@@ -91,7 +98,12 @@ impl PositionMarkedIRExtractor {
     fn format_function_with_positions(&self, function: &Function) -> Result<String> {
         let mut output = String::new();
 
-        writeln!(output, "\n### Function: {} ({:?})", function.name(), function.visibility)?;
+        writeln!(
+            output,
+            "\n### Function: {} ({:?})",
+            function.name(),
+            function.visibility
+        )?;
 
         if !function.signature.params.is_empty() {
             writeln!(output, "Parameters:")?;
@@ -131,7 +143,10 @@ impl PositionMarkedIRExtractor {
         for block in function.body.blocks.values() {
             for inst in &block.instructions {
                 match inst {
-                    Instruction::Call { target: CallTarget::External(_), .. } => {
+                    Instruction::Call {
+                        target: CallTarget::External(_),
+                        ..
+                    } => {
                         external_call_positions.push(global_pos);
                     }
                     Instruction::StorageStore { .. } | Instruction::MappingStore { .. } => {
@@ -210,80 +225,117 @@ impl PositionMarkedIRExtractor {
 
     fn format_instruction(&self, output: &mut String, inst: &Instruction) -> Result<()> {
         match inst {
-            Instruction::Call { result, target, .. } => {
-                match target {
-                    CallTarget::External(addr) => {
-                        write!(output, "🔴 EXTERNAL_CALL {} = call External({})",
-                               self.format_value(result), self.format_value(addr))?
-                    }
-                    CallTarget::Internal(name) => {
-                        write!(output, "{} = call Internal({})",
-                               self.format_value(result), name)?
-                    }
-                    CallTarget::Builtin(name) => {
-                        write!(output, "{} = call Builtin({:?})",
-                               self.format_value(result), name)?
-                    }
-                    CallTarget::Library(name) => {
-                        write!(output, "{} = call Library({})",
-                               self.format_value(result), name)?
-                    }
-                }
-            }
+            Instruction::Call { result, target, .. } => match target {
+                CallTarget::External(addr) => write!(
+                    output,
+                    "🔴 EXTERNAL_CALL {} = call External({})",
+                    self.format_value(result),
+                    self.format_value(addr)
+                )?,
+                CallTarget::Internal(name) => write!(
+                    output,
+                    "{} = call Internal({})",
+                    self.format_value(result),
+                    name
+                )?,
+                CallTarget::Builtin(name) => write!(
+                    output,
+                    "{} = call Builtin({:?})",
+                    self.format_value(result),
+                    name
+                )?,
+                CallTarget::Library(name) => write!(
+                    output,
+                    "{} = call Library({})",
+                    self.format_value(result),
+                    name
+                )?,
+            },
 
-            Instruction::StorageStore { key, value } => {
-                write!(output, "🟡 STATE_WRITE storage_store {} <- {}",
-                       self.format_storage_key(key), self.format_value(value))?
-            }
+            Instruction::StorageStore { key, value } => write!(
+                output,
+                "🟡 STATE_WRITE storage_store {} <- {}",
+                self.format_storage_key(key),
+                self.format_value(value)
+            )?,
 
-            Instruction::MappingStore { mapping, key, value } => {
-                write!(output, "🟡 STATE_WRITE mapping_store {}[{}] <- {}",
-                       self.format_value(mapping),
-                       self.format_value(key),
-                       self.format_value(value))?
-            }
+            Instruction::MappingStore {
+                mapping,
+                key,
+                value,
+            } => write!(
+                output,
+                "🟡 STATE_WRITE mapping_store {}[{}] <- {}",
+                self.format_value(mapping),
+                self.format_value(key),
+                self.format_value(value)
+            )?,
 
-            Instruction::Assign { result, value } => {
-                write!(output, "{} = {}",
-                       self.format_value(result),
-                       self.format_value(value))?
-            }
+            Instruction::Assign { result, value } => write!(
+                output,
+                "{} = {}",
+                self.format_value(result),
+                self.format_value(value)
+            )?,
 
-            Instruction::Add { result, left, right, .. } => {
-                write!(output, "{} = add {}, {}",
-                       self.format_value(result),
-                       self.format_value(left),
-                       self.format_value(right))?
-            }
+            Instruction::Add {
+                result,
+                left,
+                right,
+                ..
+            } => write!(
+                output,
+                "{} = add {}, {}",
+                self.format_value(result),
+                self.format_value(left),
+                self.format_value(right)
+            )?,
 
-            Instruction::Sub { result, left, right, .. } => {
-                write!(output, "{} = sub {}, {}",
-                       self.format_value(result),
-                       self.format_value(left),
-                       self.format_value(right))?
-            }
+            Instruction::Sub {
+                result,
+                left,
+                right,
+                ..
+            } => write!(
+                output,
+                "{} = sub {}, {}",
+                self.format_value(result),
+                self.format_value(left),
+                self.format_value(right)
+            )?,
 
-            Instruction::StorageLoad { result, key } => {
-                write!(output, "{} = storage_load {:?}",
-                       self.format_value(result), key)?
-            }
+            Instruction::StorageLoad { result, key } => write!(
+                output,
+                "{} = storage_load {:?}",
+                self.format_value(result),
+                key
+            )?,
 
-            Instruction::MappingLoad { result, mapping, key } => {
-                write!(output, "{} = mapping_load {}[{}]",
-                       self.format_value(result),
-                       self.format_value(mapping),
-                       self.format_value(key))?
-            }
+            Instruction::MappingLoad {
+                result,
+                mapping,
+                key,
+            } => write!(
+                output,
+                "{} = mapping_load {}[{}]",
+                self.format_value(result),
+                self.format_value(mapping),
+                self.format_value(key)
+            )?,
 
-            Instruction::Require { condition, message } => {
-                write!(output, "require {} \"{}\"",
-                       self.format_value(condition), message)?
-            }
+            Instruction::Require { condition, message } => write!(
+                output,
+                "require {} \"{}\"",
+                self.format_value(condition),
+                message
+            )?,
 
-            Instruction::Assert { condition, message } => {
-                write!(output, "assert {} \"{}\"",
-                       self.format_value(condition), message)?
-            }
+            Instruction::Assert { condition, message } => write!(
+                output,
+                "assert {} \"{}\"",
+                self.format_value(condition),
+                message
+            )?,
 
             _ => write!(output, "{:?}", inst)?,
         }
@@ -311,12 +363,24 @@ impl PositionMarkedIRExtractor {
                 write!(output, ")")?
             }
 
-            Terminator::Branch { condition, then_block, else_block, .. } => {
-                write!(output, "branch {} ? block_{} : block_{}",
-                       self.format_value(condition), then_block, else_block)?
-            }
+            Terminator::Branch {
+                condition,
+                then_block,
+                else_block,
+                ..
+            } => write!(
+                output,
+                "branch {} ? block_{} : block_{}",
+                self.format_value(condition),
+                then_block,
+                else_block
+            )?,
 
-            Terminator::Switch { value, default, cases } => {
+            Terminator::Switch {
+                value,
+                default,
+                cases,
+            } => {
                 write!(output, "switch {} {{", self.format_value(value))?;
                 for (case_val, target) in cases {
                     write!(output, " {}: {},", self.format_value(case_val), target)?;
@@ -332,7 +396,7 @@ impl PositionMarkedIRExtractor {
     }
 
     fn format_value(&self, value: &Value) -> String {
-        use thalir_core::values::{TempId, ParamId, GlobalId, VarId, StorageRefId, MemoryRefId};
+        use thalir_core::values::{GlobalId, MemoryRefId, ParamId, StorageRefId, TempId, VarId};
 
         match value {
             Value::Register(id) => format!("%{:?}", id),
@@ -369,8 +433,12 @@ impl PositionMarkedIRExtractor {
             StorageKey::Slot(slot) => format!("Slot({})", slot),
             StorageKey::Dynamic(val) => format!("Dynamic({})", self.format_value(val)),
             StorageKey::Computed(val) => format!("Computed({})", self.format_value(val)),
-            StorageKey::MappingKey { base, key } => format!("mapping[{}][{}]", base, self.format_value(key)),
-            StorageKey::ArrayElement { base, index } => format!("array[{}][{}]", base, self.format_value(index)),
+            StorageKey::MappingKey { base, key } => {
+                format!("mapping[{}][{}]", base, self.format_value(key))
+            }
+            StorageKey::ArrayElement { base, index } => {
+                format!("array[{}][{}]", base, self.format_value(index))
+            }
         }
     }
 }

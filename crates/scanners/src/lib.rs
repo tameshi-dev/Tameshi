@@ -13,16 +13,16 @@ pub mod core;
 pub mod representations;
 pub mod runner;
 
-pub mod reentrancy;
-pub mod unchecked_return;
-pub mod state_modifications;
-pub mod dangerous_functions;
-pub mod integer_overflow;
 pub mod access_control;
-pub mod time_vulnerabilities;
-pub mod dos_vulnerabilities;
-pub mod price_manipulation;
 pub mod cross_function_reentrancy;
+pub mod dangerous_functions;
+pub mod dos_vulnerabilities;
+pub mod integer_overflow;
+pub mod price_manipulation;
+pub mod reentrancy;
+pub mod state_modifications;
+pub mod time_vulnerabilities;
+pub mod unchecked_return;
 
 pub mod source;
 
@@ -34,38 +34,29 @@ pub mod llm;
 #[cfg(feature = "llm")]
 pub mod llm_scanners;
 
-pub use core::{AnalysisContext, ContractInfo, Confidence, Scanner, Finding, Severity};
+pub use core::{AnalysisContext, Confidence, ContractInfo, Finding, Scanner, Severity};
 
 pub use representations::{Representation, RepresentationBundle};
 
-pub use runner::{ScanningEngine, ScanReport, ScannerRegistry};
+pub use runner::{ScanReport, ScannerRegistry, ScanningEngine};
 
-pub use reentrancy::IRReentrancyScanner;
 pub use access_control::IRAccessControlScanner;
-pub use unchecked_return::IRUncheckedReturnScanner;
-pub use state_modifications::IRStateModificationScanner;
-pub use dangerous_functions::IRDangerousFunctionsScanner;
-pub use integer_overflow::IRIntegerOverflowScanner;
-pub use time_vulnerabilities::IRTimeVulnerabilityScanner;
-pub use dos_vulnerabilities::IRDoSVulnerabilityScanner;
-pub use price_manipulation::IRPriceManipulationScanner;
 pub use cross_function_reentrancy::IRCrossFunctionReentrancyScanner;
+pub use dangerous_functions::IRDangerousFunctionsScanner;
+pub use dos_vulnerabilities::IRDoSVulnerabilityScanner;
+pub use integer_overflow::IRIntegerOverflowScanner;
+pub use price_manipulation::IRPriceManipulationScanner;
+pub use reentrancy::IRReentrancyScanner;
+pub use state_modifications::IRStateModificationScanner;
+pub use time_vulnerabilities::IRTimeVulnerabilityScanner;
+pub use unchecked_return::IRUncheckedReturnScanner;
 
 pub use source::{
-    SourceLoopReentrancyScanner,
-    SourceClassicReentrancyScanner,
-    SourceIntegerOverflowScanner,
-    SourceAccessControlScanner,
-    SourceUncheckedReturnScanner,
-    SourceDangerousFunctionsScanner,
-    SourceTimeVulnerabilitiesScanner,
-    SourceDoSVulnerabilitiesScanner,
-    SourceMissingAccessControlScanner,
-    SourceGasLimitDoSScanner,
-    SourceDelegatecallScanner,
-    SourceUncheckedOverflowScanner,
-    SimpleTimestampScanner,
-    get_functions_with_modifiers,
+    get_functions_with_modifiers, SimpleTimestampScanner, SourceAccessControlScanner,
+    SourceClassicReentrancyScanner, SourceDangerousFunctionsScanner, SourceDelegatecallScanner,
+    SourceDoSVulnerabilitiesScanner, SourceGasLimitDoSScanner, SourceIntegerOverflowScanner,
+    SourceLoopReentrancyScanner, SourceMissingAccessControlScanner,
+    SourceTimeVulnerabilitiesScanner, SourceUncheckedOverflowScanner, SourceUncheckedReturnScanner,
 };
 
 pub use source::dos_ast::ASTDoSVulnerabilitiesScanner;
