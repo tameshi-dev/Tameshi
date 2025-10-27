@@ -1,0 +1,42 @@
+# Build artifacts
+target/
+**/target/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+docs/
+
+# CI/CD
+.github/
+
+# Cargo lock for libraries (keep for binaries)
+# Cargo.lock
+
+# Test files
+**/tests/
+
+# Development files
+.env
+.env.*
+
+# macOS
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Logs
+*.log
