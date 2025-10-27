@@ -1,5 +1,6 @@
 use crate::core::{
-    AnalysisContext, DeduplicationStats, Finding, FindingFingerprint, Scanner, ScannerConfig,
+    AnalysisContext, ContractInfo, DeduplicationStats, Finding, FindingFingerprint, Scanner,
+    ScannerConfig,
 };
 use crate::representations::RepresentationBundle;
 use anyhow::Result;
@@ -32,6 +33,53 @@ impl ScanningEngine {
 
     pub fn run(&self, representations: RepresentationBundle) -> Result<ScanReport> {
         let context = AnalysisContext::with_config(representations, self.config.clone());
+
+        let mut findings = if self.config.parallel_execution {
+            self.scanners
+                .par_iter()
+                .filter_map(|scanner| match scanner.scan(&context) {
+                    Ok(findings) => Some(findings),
+                    Err(e) => {
+                        eprintln!("Scanner {} failed: {}", scanner.id(), e);
+                        None
+                    }
+                })
+                .flatten()
+                .collect()
+        } else {
+            let mut all_findings = Vec::new();
+            for scanner in &self.scanners {
+                match scanner.scan(&context) {
+                    Ok(findings) => all_findings.extend(findings),
+                    Err(e) => eprintln!("Scanner {} failed: {}", scanner.id(), e),
+                }
+            }
+            all_findings
+        };
+
+        let dedup_stats = if self.config.deduplication_enabled {
+            let (deduped, stats) = self.deduplicate_findings(findings);
+            findings = deduped;
+            Some(stats)
+        } else {
+            None
+        };
+
+        Ok(ScanReport::new(findings).with_deduplication_stats(dedup_stats))
+    }
+
+    pub fn run_with_source(
+        &self,
+        representations: RepresentationBundle,
+        contract_info: ContractInfo,
+        source_code: &str,
+    ) -> Result<ScanReport> {
+        let context = AnalysisContext::new_with_source(
+            representations,
+            contract_info,
+            self.config.clone(),
+            source_code,
+        );
 
         let mut findings = if self.config.parallel_execution {
             self.scanners

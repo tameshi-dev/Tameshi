@@ -15,12 +15,25 @@ use thalir_core::{
 
 pub struct IRDoSVulnerabilityScanner {
     findings: Vec<Finding>,
+    debug: bool,
 }
 
 impl IRDoSVulnerabilityScanner {
     pub fn new() -> Self {
         Self {
             findings: Vec::new(),
+            debug: false,
+        }
+    }
+
+    pub fn with_debug(mut self, debug: bool) -> Self {
+        self.debug = debug;
+        self
+    }
+
+    fn debug_log(&self, msg: &str) {
+        if self.debug {
+            eprintln!("[DOS Scanner Debug] {}", msg);
         }
     }
 
@@ -53,7 +66,13 @@ impl IRDoSVulnerabilityScanner {
                         }
 
                         Instruction::Call { target, args, .. } => {
-                            external_calls.push((block_id, idx, target, args.len()));
+                            // Only track actual external calls, not builtins
+                            match target {
+                                CallTarget::External(_) => {
+                                    external_calls.push((block_id, idx, target, args.len()));
+                                }
+                                _ => {}
+                            }
                         }
 
                         Instruction::Lt {
@@ -218,45 +237,117 @@ impl IRDoSVulnerabilityScanner {
         let call_count = external_calls.len();
 
         if call_count > 3 {
-            if let Some((block_id, idx, _, _)) = external_calls.first() {
+            let mut call_locations = Vec::new();
+            let mut call_descriptions = Vec::new();
+
+            if self.debug {
+                self.debug_log(&format!("Found {} external calls in function '{}'", call_count, func_name));
+            }
+
+            for (block_id, idx, target, _) in external_calls {
                 let location = super::provenance::get_instruction_location(
                     contract, func_name, *block_id, *idx,
                 );
 
-                self.findings.push(Finding::new(
-                    "external-call-dos".to_string(),
-                    Severity::High,
-                    Confidence::Medium,
-                    format!("External call DoS vulnerability in '{}'", func_name),
-                    format!(
-                        "Function '{}' in contract '{}' makes {} external calls. Each call can fail or consume excessive gas, causing denial of service. Consider implementing pull-over-push pattern",
-                        func_name, contract.name, call_count
-                    ),
-                )
-                .with_location(location)
-                .with_contract(&contract.name)
-                .with_function(func_name));
+                let call_type = match target {
+                    CallTarget::External(_) => "external call",
+                    CallTarget::Internal(_) => "internal call",
+                    CallTarget::Library(_) => "library call",
+                    CallTarget::Builtin(_) => "builtin call",
+                };
+
+                if self.debug {
+                    self.debug_log(&format!(
+                        "  Call at block {} idx {} -> Line {}: {:?}",
+                        block_id.0, idx, location.line, location.snippet
+                    ));
+                }
+
+                call_descriptions.push(format!(
+                    "  - Line {}: {}",
+                    location.line,
+                    location.snippet.as_deref().unwrap_or(call_type)
+                ));
+                call_locations.push(location);
             }
+
+            let mut finding = Finding::new(
+                "external-call-dos".to_string(),
+                Severity::High,
+                Confidence::Medium,
+                format!("External call DoS vulnerability in '{}'", func_name),
+                format!(
+                    "Function '{}' in contract '{}' makes {} external calls. Each call can fail or consume excessive gas, causing denial of service. Consider implementing pull-over-push pattern:\n{}",
+                    func_name,
+                    contract.name,
+                    call_count,
+                    call_descriptions.join("\n")
+                ),
+            )
+            .with_contract(&contract.name)
+            .with_function(func_name);
+
+            for location in call_locations {
+                finding = finding.with_location(location);
+            }
+
+            self.findings.push(finding);
         } else if call_count > 1 {
-            if let Some((block_id, idx, _, _)) = external_calls.first() {
+            let mut call_locations = Vec::new();
+            let mut call_descriptions = Vec::new();
+
+            if self.debug {
+                self.debug_log(&format!("Found {} external calls in function '{}'", call_count, func_name));
+            }
+
+            for (block_id, idx, target, _) in external_calls {
                 let location = super::provenance::get_instruction_location(
                     contract, func_name, *block_id, *idx,
                 );
 
-                self.findings.push(Finding::new(
-                    "multiple-external-calls".to_string(),
-                    Severity::Medium,
-                    Confidence::Medium,
-                    format!("Multiple external calls in '{}'", func_name),
-                    format!(
-                        "Function '{}' in contract '{}' makes {} external calls which could fail and block execution",
-                        func_name, contract.name, call_count
-                    ),
-                )
-                .with_location(location)
-                .with_contract(&contract.name)
-                .with_function(func_name));
+                let call_type = match target {
+                    CallTarget::External(_) => "external call",
+                    CallTarget::Internal(_) => "internal call",
+                    CallTarget::Library(_) => "library call",
+                    CallTarget::Builtin(_) => "builtin call",
+                };
+
+                if self.debug {
+                    self.debug_log(&format!(
+                        "  Call at block {} idx {} -> Line {}: {:?}",
+                        block_id.0, idx, location.line, location.snippet
+                    ));
+                }
+
+                call_descriptions.push(format!(
+                    "  - Line {}: {}",
+                    location.line,
+                    location.snippet.as_deref().unwrap_or(call_type)
+                ));
+                call_locations.push(location);
             }
+
+            let mut finding = Finding::new(
+                "multiple-external-calls".to_string(),
+                Severity::Medium,
+                Confidence::Medium,
+                format!("Multiple external calls in '{}'", func_name),
+                format!(
+                    "Function '{}' in contract '{}' makes {} external calls which could fail and block execution:\n{}",
+                    func_name,
+                    contract.name,
+                    call_count,
+                    call_descriptions.join("\n")
+                ),
+            )
+            .with_contract(&contract.name)
+            .with_function(func_name);
+
+            for location in call_locations {
+                finding = finding.with_location(location);
+            }
+
+            self.findings.push(finding);
         }
     }
 
