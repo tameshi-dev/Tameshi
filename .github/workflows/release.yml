@@ -198,24 +198,6 @@ jobs:
             type=raw,value=${{ github.event.inputs.tag }},enable=${{ github.event_name == 'workflow_dispatch' }}
             type=raw,value=latest,enable=${{ github.event_name == 'workflow_dispatch' }}
 
-      - name: Create Dockerfile
-        run: |
-          cat > Dockerfile << 'EOF'
-          FROM rust:1.75 as builder
-
-          WORKDIR /app
-          COPY . .
-
-          RUN cargo build --release --bin tameshi
-
-          FROM debian:bookworm-slim
-          RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-
-          COPY --from=builder /app/target/release/tameshi /usr/local/bin/tameshi
-
-          ENTRYPOINT ["/usr/local/bin/tameshi"]
-          EOF
-
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

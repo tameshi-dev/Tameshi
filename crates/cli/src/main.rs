@@ -7,8 +7,8 @@ use commands::{analyze::AnalyzeArgs, scan::ScanCommand, transform::TransformComm
 #[derive(Parser)]
 #[command(name = "tameshi")]
 #[command(about = "Unified CLI for Solidity analysis and ThalIR")]
-#[command(version = "0.2.0")]
-#[command(author = "Tameshi Team")]
+#[command(version)]
+#[command(author = "Gianluca Brigandi")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
