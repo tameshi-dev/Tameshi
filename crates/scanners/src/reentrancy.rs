@@ -763,17 +763,17 @@ mod tests {
     fn test_reentrancy_detection() {
         let mut builder = IRBuilder::new();
 
-        let mut contract_builder = builder.contract("TestContract");
+        let contract_builder = builder.contract("TestContract");
 
         let contract = contract_builder.build().unwrap();
 
-        let mut Scanner = IRReentrancyScanner::new();
-        let findings = Scanner.analyze(&contract).unwrap();
+        let mut scanner = IRReentrancyScanner::new();
+        let _findings = scanner.analyze(&contract).unwrap();
     }
 
     #[test]
     fn test_pattern_matching() {
-        let Scanner = IRReentrancyScanner::new();
+        let _scanner = IRReentrancyScanner::new();
 
         let pattern = PatternBuilder::new()
             .external_call()

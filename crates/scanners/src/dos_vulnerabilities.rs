@@ -67,11 +67,8 @@ impl IRDoSVulnerabilityScanner {
 
                         Instruction::Call { target, args, .. } => {
                             // Only track actual external calls, not builtins
-                            match target {
-                                CallTarget::External(_) => {
-                                    external_calls.push((block_id, idx, target, args.len()));
-                                }
-                                _ => {}
+                            if let CallTarget::External(_) = target {
+                                external_calls.push((block_id, idx, target, args.len()));
                             }
                         }
 
@@ -241,7 +238,10 @@ impl IRDoSVulnerabilityScanner {
             let mut call_descriptions = Vec::new();
 
             if self.debug {
-                self.debug_log(&format!("Found {} external calls in function '{}'", call_count, func_name));
+                self.debug_log(&format!(
+                    "Found {} external calls in function '{}'",
+                    call_count, func_name
+                ));
             }
 
             for (block_id, idx, target, _) in external_calls {
@@ -297,7 +297,10 @@ impl IRDoSVulnerabilityScanner {
             let mut call_descriptions = Vec::new();
 
             if self.debug {
-                self.debug_log(&format!("Found {} external calls in function '{}'", call_count, func_name));
+                self.debug_log(&format!(
+                    "Found {} external calls in function '{}'",
+                    call_count, func_name
+                ));
             }
 
             for (block_id, idx, target, _) in external_calls {

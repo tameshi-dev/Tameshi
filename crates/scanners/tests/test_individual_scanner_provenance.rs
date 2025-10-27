@@ -85,7 +85,7 @@ contract ReentrancyTest {
     println!("Total findings: {}", findings.len());
 
     if !findings.is_empty() {
-        verify_finding_locations(&findings, FILENAME, "Reentrancy");
+        verify_finding_locations(findings, FILENAME, "Reentrancy");
         println!("\n✅ Reentrancy scanner provenance test passed!");
     } else {
         println!("⚠️  No findings (may need IR improvements)");
@@ -128,7 +128,7 @@ contract AccessControlTest {
         !findings.is_empty(),
         "Access control scanner should find missing access control"
     );
-    verify_finding_locations(&findings, FILENAME, "Access Control");
+    verify_finding_locations(findings, FILENAME, "Access Control");
     println!("\n✅ Access control scanner provenance test passed!");
 
     Ok(())
@@ -163,7 +163,7 @@ contract UncheckedReturnTest {
     println!("Total findings: {}", findings.len());
 
     if !findings.is_empty() {
-        verify_finding_locations(&findings, FILENAME, "Unchecked Return");
+        verify_finding_locations(findings, FILENAME, "Unchecked Return");
         println!("\n✅ Unchecked return scanner provenance test passed!");
     } else {
         println!("⚠️  No findings (may need IR improvements)");
@@ -206,7 +206,7 @@ contract DangerousFunctionsTest {
         !findings.is_empty(),
         "Dangerous functions scanner should detect selfdestruct"
     );
-    verify_finding_locations(&findings, FILENAME, "Dangerous Functions");
+    verify_finding_locations(findings, FILENAME, "Dangerous Functions");
     println!("\n✅ Dangerous functions scanner provenance test passed!");
 
     Ok(())
@@ -249,7 +249,7 @@ contract PriceManipulationTest {
     println!("Total findings: {}", findings.len());
 
     if !findings.is_empty() {
-        verify_finding_locations(&findings, FILENAME, "Price Manipulation");
+        verify_finding_locations(findings, FILENAME, "Price Manipulation");
         println!("\n✅ Price manipulation scanner provenance test passed!");
     } else {
         println!("⚠️  No findings (may need more complex test case)");
@@ -299,7 +299,7 @@ contract DoSTest {
     println!("Total findings: {}", findings.len());
 
     if !findings.is_empty() {
-        verify_finding_locations(&findings, FILENAME, "DoS");
+        verify_finding_locations(findings, FILENAME, "DoS");
         println!("\n✅ DoS scanner provenance test passed!");
     } else {
         println!("⚠️  No findings (may need IR improvements)");

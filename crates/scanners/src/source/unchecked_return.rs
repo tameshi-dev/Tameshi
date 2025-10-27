@@ -174,7 +174,7 @@ mod tests {
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
         assert!(
-            result.len() >= 1,
+            !result.is_empty(),
             "Expected at least 1 finding for unchecked ERC20 transfer"
         );
         assert!(result.iter().any(|f| f.description.contains("ERC20")));
@@ -213,7 +213,7 @@ mod tests {
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
         assert!(
-            result.len() >= 1,
+            !result.is_empty(),
             "Expected at least 1 finding for unchecked low-level call"
         );
         assert!(result.iter().any(|f| f.description.contains("low-level")));

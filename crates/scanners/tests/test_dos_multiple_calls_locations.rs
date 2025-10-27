@@ -1,11 +1,9 @@
 /// Test for multiple external calls location accuracy
-
 use anyhow::Result;
 use tameshi_scanners::{
-    core::{ScannerConfig, AnalysisContext},
+    core::{AnalysisContext, ScannerConfig},
     representations::RepresentationBundle,
-    IRDoSVulnerabilityScanner,
-    Scanner,
+    IRDoSVulnerabilityScanner, Scanner,
 };
 use thalir_transform::transform_solidity_to_ir_with_filename;
 
@@ -56,7 +54,10 @@ contract TestMultipleCalls {
 
     println!("Finding: {}", multiple_calls_finding.title);
     println!("Description: {}", multiple_calls_finding.description);
-    println!("Locations found: {}", multiple_calls_finding.locations.len());
+    println!(
+        "Locations found: {}",
+        multiple_calls_finding.locations.len()
+    );
 
     for location in &multiple_calls_finding.locations {
         println!("  - Line {}: {:?}", location.line, location.snippet);
@@ -71,10 +72,10 @@ contract TestMultipleCalls {
     for location in &multiple_calls_finding.locations {
         if let Some(ref snippet) = location.snippet {
             assert!(
-                snippet.contains("transfer") ||
-                snippet.contains("call") ||
-                snippet.contains("send") ||
-                location.line > 0,
+                snippet.contains("transfer")
+                    || snippet.contains("call")
+                    || snippet.contains("send")
+                    || location.line > 0,
                 "Location should have relevant snippet or valid line number"
             );
         }
@@ -148,7 +149,10 @@ contract CommitRevealAuction {
 
     println!("\n[Auction Test] Detected {} findings", findings.len());
 
-    if let Some(finding) = findings.iter().find(|f| f.finding_type == "multiple-external-calls") {
+    if let Some(finding) = findings
+        .iter()
+        .find(|f| f.finding_type == "multiple-external-calls")
+    {
         println!("Finding: {}", finding.title);
         println!("Locations found: {}", finding.locations.len());
 

@@ -56,8 +56,8 @@ pub use source::{
     SourceClassicReentrancyScanner, SourceDangerousFunctionsScanner, SourceDelegatecallScanner,
     SourceDoSVulnerabilitiesScanner, SourceGasLimitDoSScanner, SourceIntegerOverflowScanner,
     SourceLoopReentrancyScanner, SourceMissingAccessControlScanner,
-    SourceTimeVulnerabilitiesScanner, UncheckedArithmeticScanner, SourceUncheckedOverflowScanner,
-    SourceUncheckedReturnScanner,
+    SourceTimeVulnerabilitiesScanner, SourceUncheckedOverflowScanner, SourceUncheckedReturnScanner,
+    UncheckedArithmeticScanner,
 };
 
 pub use source::dos_ast::ASTDoSVulnerabilitiesScanner;

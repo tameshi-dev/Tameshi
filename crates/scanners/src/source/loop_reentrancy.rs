@@ -153,7 +153,7 @@ mod tests {
         let scanner = SourceLoopReentrancyScanner::new();
         let findings = scanner.scan(&context).unwrap();
 
-        assert!(findings.len() >= 1, "Expected at least 1 finding");
+        assert!(!findings.is_empty(), "Expected at least 1 finding");
         assert!(findings
             .iter()
             .any(|f| f.scanner_id == "source-loop-reentrancy"));

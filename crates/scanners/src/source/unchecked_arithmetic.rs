@@ -1,3 +1,4 @@
+use crate::core::context::AnalysisContext;
 /// Unchecked Arithmetic Scanner - Detects potentially vulnerable arithmetic operations in Solidity unchecked blocks
 ///
 /// This scanner identifies arithmetic operations within unchecked blocks that could lead to
@@ -6,11 +7,9 @@
 /// - Balance and allowance manipulations
 /// - User-controllable arithmetic
 /// - Loop counter manipulations
-
 use crate::core::result::{Finding, FindingMetadata, Location};
 use crate::core::scanner::Scanner;
 use crate::core::severity::{Confidence, Severity};
-use crate::core::context::AnalysisContext;
 use crate::representations::source::SourceRepresentation;
 use anyhow::Result;
 use std::collections::{HashMap, HashSet};
@@ -45,12 +44,22 @@ enum OperationContext {
 
 pub struct UncheckedArithmeticScanner;
 
+impl Default for UncheckedArithmeticScanner {
+    fn default() -> Self {
+        Self
+    }
+}
+
 impl UncheckedArithmeticScanner {
     pub fn new() -> Self {
         Self
     }
 
-    fn analyze_contract(&self, source_repr: &SourceRepresentation, contract_name: &str) -> Result<Vec<Finding>> {
+    fn analyze_contract(
+        &self,
+        source_repr: &SourceRepresentation,
+        contract_name: &str,
+    ) -> Result<Vec<Finding>> {
         let mut findings = Vec::new();
         let mut analyzer = UncheckedAnalyzer::new(source_repr);
 
@@ -78,20 +87,30 @@ impl UncheckedArithmeticScanner {
 
                 let mut metadata = FindingMetadata::default();
                 metadata.affected_contracts.push(contract_name.to_string());
-                metadata.affected_functions.push(operation.function_name.clone());
+                metadata
+                    .affected_functions
+                    .push(operation.function_name.clone());
 
                 if operation.is_state_variable {
-                    metadata.affected_variables.push(operation.left_operand.clone());
+                    metadata
+                        .affected_variables
+                        .push(operation.left_operand.clone());
                 }
 
                 if operation.is_critical_operation {
-                    metadata.references.push("Critical financial operation".to_string());
+                    metadata
+                        .references
+                        .push("Critical financial operation".to_string());
                 }
                 if operation.is_user_controllable {
-                    metadata.references.push("User-controllable input".to_string());
+                    metadata
+                        .references
+                        .push("User-controllable input".to_string());
                 }
                 if !operation.has_validation {
-                    metadata.references.push("No prior validation detected".to_string());
+                    metadata
+                        .references
+                        .push("No prior validation detected".to_string());
                 }
                 finding.metadata = Some(metadata);
 
@@ -174,9 +193,7 @@ impl UncheckedArithmeticScanner {
             OperationContext::ArrayIndexManipulation => {
                 "Unchecked array index arithmetic".to_string()
             }
-            OperationContext::LoopCounter => {
-                "Unchecked loop counter arithmetic".to_string()
-            }
+            OperationContext::LoopCounter => "Unchecked loop counter arithmetic".to_string(),
             OperationContext::StateVariableUpdate => {
                 format!("Unchecked state variable {} operation", operation.operator)
             }
@@ -202,13 +219,19 @@ impl UncheckedArithmeticScanner {
 
         match operation.operator.as_str() {
             "-=" | "-" => {
-                description.push_str("which could underflow if the right operand is greater than the left operand. ");
+                description.push_str(
+                    "which could underflow if the right operand is greater than the left operand. ",
+                );
             }
             "+=" | "+" => {
-                description.push_str("which could overflow if the sum exceeds the maximum value for the type. ");
+                description.push_str(
+                    "which could overflow if the sum exceeds the maximum value for the type. ",
+                );
             }
             "*=" | "*" => {
-                description.push_str("which could overflow if the product exceeds the maximum value for the type. ");
+                description.push_str(
+                    "which could overflow if the product exceeds the maximum value for the type. ",
+                );
             }
             "/=" | "/" => {
                 description.push_str("which could revert if the divisor is zero. ");
@@ -242,7 +265,8 @@ impl UncheckedArithmeticScanner {
         }
 
         if !operation.has_validation {
-            description.push_str(" No validation checks were detected before this unchecked operation.");
+            description
+                .push_str(" No validation checks were detected before this unchecked operation.");
         }
 
         description.push_str(" Consider using checked arithmetic or adding explicit validation before the operation.");
@@ -276,15 +300,15 @@ impl Scanner for UncheckedArithmeticScanner {
         let mut all_findings = Vec::new();
 
         if let Some(source_code) = context.source_code() {
-            let file_path = context.contract_info().source_path.clone()
+            let file_path = context
+                .contract_info()
+                .source_path
+                .clone()
                 .unwrap_or_else(|| "unknown.sol".to_string());
             let contract_name = context.contract_info().name.clone();
 
-            let source_repr = SourceRepresentation::from_source(
-                source_code,
-                &file_path,
-                &contract_name
-            )?;
+            let source_repr =
+                SourceRepresentation::from_source(source_code, &file_path, &contract_name)?;
 
             let findings = self.analyze_contract(&source_repr, &contract_name)?;
             all_findings.extend(findings);
@@ -348,13 +372,24 @@ impl<'a> UncheckedAnalyzer<'a> {
         Ok(operations)
     }
 
-    fn extract_from_full_source(&self, root: &Node, function_name: &str, func_info: &crate::representations::source::FunctionInfo) -> Result<Vec<UncheckedOperation>> {
+    fn extract_from_full_source(
+        &self,
+        root: &Node,
+        function_name: &str,
+        func_info: &crate::representations::source::FunctionInfo,
+    ) -> Result<Vec<UncheckedOperation>> {
         let mut operations = Vec::new();
 
         let func_start_line = func_info.location.line;
         let func_end_line = func_info.location.end_line;
 
-        self.find_unchecked_in_range(root, function_name, func_start_line, func_end_line, &mut operations)?;
+        self.find_unchecked_in_range(
+            root,
+            function_name,
+            func_start_line,
+            func_end_line,
+            &mut operations,
+        )?;
 
         Ok(operations)
     }
@@ -389,10 +424,15 @@ impl<'a> UncheckedAnalyzer<'a> {
                     }
 
                     if has_unchecked {
-                        let mut body_operations = self.extract_arithmetic_from_block(&stmt_child, function_name, &self.source_repr.source)?;
+                        let mut body_operations = self.extract_arithmetic_from_block(
+                            &stmt_child,
+                            function_name,
+                            &self.source_repr.source,
+                        )?;
 
                         for op in &mut body_operations {
-                            op.has_validation = self.check_prior_validation(stmt_child, &self.source_repr.source);
+                            op.has_validation =
+                                self.check_prior_validation(stmt_child, &self.source_repr.source);
                         }
 
                         operations.append(&mut body_operations);
@@ -432,7 +472,12 @@ impl<'a> UncheckedAnalyzer<'a> {
         Ok(())
     }
 
-    fn extract_from_node(&self, node: &Node, function_name: &str, source: &str) -> Result<Vec<UncheckedOperation>> {
+    fn extract_from_node(
+        &self,
+        node: &Node,
+        function_name: &str,
+        source: &str,
+    ) -> Result<Vec<UncheckedOperation>> {
         let mut operations = Vec::new();
         self.find_unchecked_blocks(node, function_name, source, &mut operations)?;
         Ok(operations)
@@ -463,7 +508,11 @@ impl<'a> UncheckedAnalyzer<'a> {
                         }
 
                         if has_unchecked {
-                            let mut body_operations = self.extract_arithmetic_from_block(&stmt_child, function_name, source)?;
+                            let mut body_operations = self.extract_arithmetic_from_block(
+                                &stmt_child,
+                                function_name,
+                                source,
+                            )?;
 
                             for op in &mut body_operations {
                                 op.has_validation = self.check_prior_validation(stmt_child, source);
@@ -481,7 +530,12 @@ impl<'a> UncheckedAnalyzer<'a> {
         Ok(())
     }
 
-    fn extract_arithmetic_from_block(&self, block: &Node, function_name: &str, source: &str) -> Result<Vec<UncheckedOperation>> {
+    fn extract_arithmetic_from_block(
+        &self,
+        block: &Node,
+        function_name: &str,
+        source: &str,
+    ) -> Result<Vec<UncheckedOperation>> {
         let mut operations = Vec::new();
 
         const ARITHMETIC_QUERY: &str = r#"
@@ -552,22 +606,19 @@ impl<'a> UncheckedAnalyzer<'a> {
             };
 
             if !operator.is_empty() {
-
-                let (left_operand, right_operand) = if let (Some(left), Some(right)) = (left_node, right_node) {
-                    (
-                        source[left.byte_range()].to_string(),
-                        source[right.byte_range()].to_string(),
-                    )
-                } else if let Some(operand) = operand_node {
-                    let operand_text = source[operand.byte_range()].to_string();
-                    if operator == "++" {
+                let (left_operand, right_operand) =
+                    if let (Some(left), Some(right)) = (left_node, right_node) {
+                        (
+                            source[left.byte_range()].to_string(),
+                            source[right.byte_range()].to_string(),
+                        )
+                    } else if let Some(operand) = operand_node {
+                        let operand_text = source[operand.byte_range()].to_string();
+                        // Both ++ and -- use 1 as the operand
                         (operand_text.clone(), "1".to_string())
                     } else {
-                        (operand_text.clone(), "1".to_string())
-                    }
-                } else {
-                    continue;
-                };
+                        continue;
+                    };
 
                 let is_state_variable = self.is_state_variable(&left_operand);
                 let is_user_controllable = self.is_user_controllable(&left_operand)

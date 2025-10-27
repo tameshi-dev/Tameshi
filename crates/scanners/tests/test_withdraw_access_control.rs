@@ -1,9 +1,8 @@
 use anyhow::Result;
 use tameshi_scanners::{
-    core::{ScannerConfig, ContractInfo, AnalysisContext, Severity},
+    core::{AnalysisContext, ContractInfo, ScannerConfig, Severity},
     representations::RepresentationBundle,
-    SourceMissingAccessControlScanner,
-    Scanner,
+    Scanner, SourceMissingAccessControlScanner,
 };
 
 #[test]
@@ -48,14 +47,23 @@ contract VulnerableContract {
     let scanner = SourceMissingAccessControlScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[Missing Access Control] Detected {} findings", findings.len());
+    println!(
+        "\n[Missing Access Control] Detected {} findings",
+        findings.len()
+    );
 
     for finding in &findings {
-        println!("  - Type: {} | Severity: {} | Title: {}", finding.finding_type, finding.severity, finding.title);
+        println!(
+            "  - Type: {} | Severity: {} | Title: {}",
+            finding.finding_type, finding.severity, finding.title
+        );
         println!("    Description: {}", finding.description);
         for location in &finding.locations {
             if let Some(ref snippet) = location.snippet {
-                println!("    Location: {}:{} - {}", location.file, location.line, snippet);
+                println!(
+                    "    Location: {}:{} - {}",
+                    location.file, location.line, snippet
+                );
             }
         }
     }
@@ -67,10 +75,9 @@ contract VulnerableContract {
     );
 
     // Check that we found the high severity unprotected-ether-withdrawal
-    let has_ether_withdrawal = findings.iter().any(|f|
-        f.finding_type == "unprotected-ether-withdrawal" &&
-        f.severity == Severity::High
-    );
+    let has_ether_withdrawal = findings
+        .iter()
+        .any(|f| f.finding_type == "unprotected-ether-withdrawal" && f.severity == Severity::High);
 
     assert!(
         has_ether_withdrawal,

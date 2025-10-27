@@ -1,10 +1,8 @@
 use anyhow::Result;
 use tameshi_scanners::{
-    core::{ScannerConfig, ContractInfo, AnalysisContext, Severity},
+    core::{AnalysisContext, ContractInfo, ScannerConfig, Severity},
     representations::RepresentationBundle,
-    SourceMissingAccessControlScanner,
-    IRAccessControlScanner,
-    Scanner,
+    IRAccessControlScanner, Scanner, SourceMissingAccessControlScanner,
 };
 use thalir_transform::transform_solidity_to_ir_with_filename;
 
@@ -90,7 +88,8 @@ contract VulnerableWallet {
 
         let bundle = RepresentationBundle::new();
         let config = ScannerConfig::default();
-        let context = AnalysisContext::new_with_source(bundle, contract_info, config, TEST_CONTRACT);
+        let context =
+            AnalysisContext::new_with_source(bundle, contract_info, config, TEST_CONTRACT);
 
         let scanner = SourceMissingAccessControlScanner::new();
         let findings = scanner.scan(&context)?;
@@ -104,9 +103,11 @@ contract VulnerableWallet {
             println!("     Description: {}", finding.description);
 
             for location in &finding.locations {
-                println!("     Location: Line {} - {:?}",
+                println!(
+                    "     Location: Line {} - {:?}",
                     location.line,
-                    location.snippet.as_deref().unwrap_or("N/A"));
+                    location.snippet.as_deref().unwrap_or("N/A")
+                );
             }
         }
 
@@ -117,11 +118,11 @@ contract VulnerableWallet {
         );
 
         // Check for withdraw vulnerability
-        let has_withdraw_vuln = findings.iter().any(|f|
-            f.finding_type == "unprotected-ether-withdrawal" &&
-            f.severity == Severity::High &&
-            f.title.contains("withdraw")
-        );
+        let has_withdraw_vuln = findings.iter().any(|f| {
+            f.finding_type == "unprotected-ether-withdrawal"
+                && f.severity == Severity::High
+                && f.title.contains("withdraw")
+        });
 
         assert!(
             has_withdraw_vuln,
@@ -129,11 +130,11 @@ contract VulnerableWallet {
         );
 
         // Check for changeOwner vulnerability
-        let has_owner_vuln = findings.iter().any(|f|
-            f.finding_type == "unprotected-ownership-change" &&
-            f.severity == Severity::Critical &&
-            f.title.contains("changeOwner")
-        );
+        let has_owner_vuln = findings.iter().any(|f| {
+            f.finding_type == "unprotected-ownership-change"
+                && f.severity == Severity::Critical
+                && f.title.contains("changeOwner")
+        });
 
         assert!(
             has_owner_vuln,
@@ -183,9 +184,10 @@ contract VulnerableWallet {
         );
 
         // Check that critical functions are flagged
-        let vulnerable_functions = findings.iter().filter(|f|
-            f.finding_type == "missing-access-control"
-        ).count();
+        let vulnerable_functions = findings
+            .iter()
+            .filter(|f| f.finding_type == "missing-access-control")
+            .count();
 
         assert!(
             vulnerable_functions > 0,

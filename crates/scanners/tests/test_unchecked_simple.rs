@@ -1,9 +1,8 @@
 use anyhow::Result;
 use tameshi_scanners::{
-    core::{ScannerConfig, ContractInfo, AnalysisContext},
+    core::{AnalysisContext, ContractInfo, ScannerConfig},
     representations::RepresentationBundle,
-    UncheckedArithmeticScanner,
-    Scanner,
+    Scanner, UncheckedArithmeticScanner,
 };
 
 #[test]
@@ -48,13 +47,19 @@ contract IntegerVulnerabilities {
     let scanner = UncheckedArithmeticScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[unchecked-arithmetic] Detected {} findings", findings.len());
+    println!(
+        "\n[unchecked-arithmetic] Detected {} findings",
+        findings.len()
+    );
 
     for finding in &findings {
         println!("  - {}: {}", finding.severity, finding.title);
         for location in &finding.locations {
             if let Some(ref snippet) = location.snippet {
-                println!("    Location: {}:{} - {}", location.file, location.line, snippet);
+                println!(
+                    "    Location: {}:{} - {}",
+                    location.file, location.line, snippet
+                );
             }
         }
     }

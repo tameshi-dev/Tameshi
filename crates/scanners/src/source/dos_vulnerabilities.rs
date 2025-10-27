@@ -200,7 +200,7 @@ mod tests {
         let scanner = SourceDoSVulnerabilitiesScanner::new();
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
-        assert!(result.len() >= 1, "Expected at least 1 DoS finding");
+        assert!(!result.is_empty(), "Expected at least 1 DoS finding");
         assert!(result.iter().any(|f| f.scanner_id.contains("dos")));
     }
 
@@ -223,7 +223,7 @@ mod tests {
         let result = scanner.analyze_ast(&source_repr, "Test").unwrap();
 
         assert!(
-            result.len() >= 1,
+            !result.is_empty(),
             "Expected at least 1 unbounded loop finding"
         );
         assert!(result.iter().any(

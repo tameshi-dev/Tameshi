@@ -1,11 +1,9 @@
 /// Test for UncheckedArithmeticScanner provenance and detection capabilities
-
 use anyhow::Result;
 use tameshi_scanners::{
-    core::{ScannerConfig, ContractInfo, AnalysisContext},
+    core::{AnalysisContext, ContractInfo, ScannerConfig},
     representations::RepresentationBundle,
-    UncheckedArithmeticScanner,
-    Scanner,
+    Scanner, UncheckedArithmeticScanner,
 };
 
 #[test]
@@ -61,7 +59,10 @@ contract VulnerableToken {
     let scanner = UncheckedArithmeticScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[unchecked-arithmetic] Detected {} findings", findings.len());
+    println!(
+        "\n[unchecked-arithmetic] Detected {} findings",
+        findings.len()
+    );
 
     assert!(
         !findings.is_empty(),
@@ -103,7 +104,10 @@ contract VulnerableToken {
             assert!(location.snippet.is_some());
 
             if let Some(ref snippet) = location.snippet {
-                println!("    Location: {}:{} - {}", location.file, location.line, snippet);
+                println!(
+                    "    Location: {}:{} - {}",
+                    location.file, location.line, snippet
+                );
             }
         }
     }
@@ -165,14 +169,18 @@ contract LoopVulnerable {
     let scanner = UncheckedArithmeticScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[unchecked-arithmetic] Loop counter findings: {}", findings.len());
+    println!(
+        "\n[unchecked-arithmetic] Loop counter findings: {}",
+        findings.len()
+    );
 
     assert!(
         !findings.is_empty(),
         "Should detect loop counter vulnerabilities"
     );
 
-    let loop_findings: Vec<_> = findings.iter()
+    let loop_findings: Vec<_> = findings
+        .iter()
         .filter(|f| f.title.contains("loop counter"))
         .collect();
 
@@ -230,7 +238,10 @@ contract ArrayManipulation {
     let scanner = UncheckedArithmeticScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[unchecked-arithmetic] Array/Mapping findings: {}", findings.len());
+    println!(
+        "\n[unchecked-arithmetic] Array/Mapping findings: {}",
+        findings.len()
+    );
 
     for finding in &findings {
         println!("  - {}: {}", finding.severity, finding.title);
@@ -291,9 +302,13 @@ contract SafeUnchecked {
     let scanner = UncheckedArithmeticScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[unchecked-arithmetic] Safe operations findings: {}", findings.len());
+    println!(
+        "\n[unchecked-arithmetic] Safe operations findings: {}",
+        findings.len()
+    );
 
-    let high_severity_findings: Vec<_> = findings.iter()
+    let high_severity_findings: Vec<_> = findings
+        .iter()
         .filter(|f| f.severity >= tameshi_scanners::core::Severity::High)
         .collect();
 
@@ -347,18 +362,29 @@ contract ValidatedUnchecked {
     let scanner = UncheckedArithmeticScanner::new();
     let findings = scanner.scan(&context)?;
 
-    println!("\n[unchecked-arithmetic] Validated vs unvalidated findings: {}", findings.len());
+    println!(
+        "\n[unchecked-arithmetic] Validated vs unvalidated findings: {}",
+        findings.len()
+    );
 
-    let unsafe_withdraw_findings: Vec<_> = findings.iter()
-        .filter(|f| f.metadata.as_ref()
-            .map(|m| m.affected_functions.contains(&"unsafeWithdraw".to_string()))
-            .unwrap_or(false))
+    let unsafe_withdraw_findings: Vec<_> = findings
+        .iter()
+        .filter(|f| {
+            f.metadata
+                .as_ref()
+                .map(|m| m.affected_functions.contains(&"unsafeWithdraw".to_string()))
+                .unwrap_or(false)
+        })
         .collect();
 
-    let safe_withdraw_findings: Vec<_> = findings.iter()
-        .filter(|f| f.metadata.as_ref()
-            .map(|m| m.affected_functions.contains(&"safeWithdraw".to_string()))
-            .unwrap_or(false))
+    let safe_withdraw_findings: Vec<_> = findings
+        .iter()
+        .filter(|f| {
+            f.metadata
+                .as_ref()
+                .map(|m| m.affected_functions.contains(&"safeWithdraw".to_string()))
+                .unwrap_or(false)
+        })
         .collect();
 
     assert!(

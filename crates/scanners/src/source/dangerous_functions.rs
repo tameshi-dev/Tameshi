@@ -252,7 +252,7 @@ mod tests {
         let scanner = SourceDangerousFunctionsScanner::new();
         let result = scanner.analyze_ast(source, "Test", "test.sol").unwrap();
 
-        assert!(result.len() >= 1);
+        assert!(!result.is_empty());
         assert!(result
             .iter()
             .any(|f| f.description.contains("callcode") || f.description.contains("assembly")));

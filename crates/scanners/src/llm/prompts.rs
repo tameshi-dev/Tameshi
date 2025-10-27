@@ -547,47 +547,6 @@ Focus on:
 Return findings as JSON:
 {json_schema}"#;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_prompt_builder_templates() {
-        let builder = PromptBuilder::new();
-
-        let mut variables = HashMap::new();
-        variables.insert(
-            "representation_type".to_string(),
-            "Cranelift IR".to_string(),
-        );
-        variables.insert("contract_metadata".to_string(), "Test contract".to_string());
-        variables.insert(
-            "code_representation".to_string(),
-            "function code".to_string(),
-        );
-        variables.insert("focus_areas".to_string(), "reentrancy".to_string());
-        variables.insert("json_schema".to_string(), "{}".to_string());
-
-        let (system, user) = builder.build_prompt("reentrancy", variables).unwrap();
-
-        assert!(system.contains("reentrancy"));
-        assert!(user.contains("function code"));
-    }
-
-    #[test]
-    fn test_variable_substitution() {
-        let builder = PromptBuilder::new();
-
-        let template = "Hello {name}, you have {count} messages";
-        let mut vars = HashMap::new();
-        vars.insert("name".to_string(), "Alice".to_string());
-        vars.insert("count".to_string(), "5".to_string());
-
-        let result = builder.substitute_variables(template, &vars);
-        assert_eq!(result, "Hello Alice, you have 5 messages");
-    }
-}
-
 const UNCHECKED_RETURNS_SYSTEM_PROMPT: &str = r#"You are a specialist in detecting unchecked return value vulnerabilities.
 
 FOCUS: Identify functions that ignore return values from external calls.
@@ -1428,3 +1387,42 @@ Return findings in JSON format:
 }}
 
 IMPORTANT: Use the position markers [N] to reason about temporal ordering!"#;
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prompt_builder_templates() {
+        let builder = PromptBuilder::new();
+
+        let mut variables = HashMap::new();
+        variables.insert(
+            "representation_type".to_string(),
+            "Cranelift IR".to_string(),
+        );
+        variables.insert("contract_metadata".to_string(), "Test contract".to_string());
+        variables.insert(
+            "code_representation".to_string(),
+            "function code".to_string(),
+        );
+        variables.insert("focus_areas".to_string(), "reentrancy".to_string());
+        variables.insert("json_schema".to_string(), "{}".to_string());
+
+        let (system, user) = builder.build_prompt("reentrancy", variables).unwrap();
+
+        assert!(system.contains("reentrancy"));
+        assert!(user.contains("function code"));
+    }
+
+    #[test]
+    fn test_variable_substitution() {
+        let builder = PromptBuilder::new();
+
+        let template = "Hello {name}, you have {count} messages";
+        let mut vars = HashMap::new();
+        vars.insert("name".to_string(), "Alice".to_string());
+        vars.insert("count".to_string(), "5".to_string());
+
+        let result = builder.substitute_variables(template, &vars);
+        assert_eq!(result, "Hello Alice, you have 5 messages");
+    }
+}

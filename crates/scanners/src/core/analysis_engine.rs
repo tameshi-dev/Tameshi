@@ -309,6 +309,12 @@ impl AnalysisEngine {
     }
 }
 
+impl Default for AnalysisEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -487,11 +493,5 @@ mod tests {
             0,
             "Different locations should not cross-validate"
         );
-    }
-}
-
-impl Default for AnalysisEngine {
-    fn default() -> Self {
-        Self::new()
     }
 }

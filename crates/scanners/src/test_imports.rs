@@ -23,5 +23,6 @@ use crate::{IRAccessControlScanner, IRReentrancyScanner, IRUncheckedReturnScanne
 
 #[test]
 fn test_all_import_paths_compile() {
-    assert!(true);
+    // This test exists solely to verify all import paths compile correctly
+    // The imports above prove the module flattening works as expected
 }
