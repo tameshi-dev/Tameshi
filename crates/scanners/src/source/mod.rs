@@ -18,6 +18,7 @@ pub mod loop_reentrancy;
 pub mod missing_access_control;
 pub mod time_vulnerabilities;
 pub mod timestamp_simple;
+pub mod unchecked_arithmetic;
 pub mod unchecked_overflow;
 pub mod unchecked_return;
 
@@ -32,5 +33,6 @@ pub use loop_reentrancy::SourceLoopReentrancyScanner;
 pub use missing_access_control::SourceMissingAccessControlScanner;
 pub use time_vulnerabilities::SourceTimeVulnerabilitiesScanner;
 pub use timestamp_simple::SimpleTimestampScanner;
+pub use unchecked_arithmetic::UncheckedArithmeticScanner;
 pub use unchecked_overflow::SourceUncheckedOverflowScanner;
 pub use unchecked_return::SourceUncheckedReturnScanner;

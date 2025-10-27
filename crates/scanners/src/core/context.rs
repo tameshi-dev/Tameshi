@@ -176,6 +176,25 @@ impl AnalysisContext {
         }
     }
 
+    pub fn new_with_source(
+        representations: RepresentationBundle,
+        contract_info: ContractInfo,
+        config: ScannerConfig,
+        source_code: &str,
+    ) -> Self {
+        let cache_size = config.max_cache_size;
+        let mut contract_info = contract_info;
+        contract_info.source_code = Some(source_code.to_string());
+
+        Self {
+            representations,
+            cache: Arc::new(RwLock::new(AnalysisCache::new(cache_size))),
+            contract_info,
+            config,
+            metadata: HashMap::new(),
+        }
+    }
+
     pub fn get_representation<T: Representation + 'static>(&self) -> Result<&T> {
         self.representations.get::<T>()
     }
