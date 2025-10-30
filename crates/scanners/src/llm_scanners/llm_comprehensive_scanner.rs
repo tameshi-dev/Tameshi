@@ -209,11 +209,17 @@ VULNERABILITY CATEGORIES TO DETECT:
    - Using block.difficulty, blockhash, or block.number for randomness
    - Predictable random number generation
 
-7. FRONT-RUNNING
-   - Transaction ordering dependence
-   - Commit-reveal schemes without proper protection
-   - Price manipulation vulnerabilities
-   - Unprotected state changes based on external data
+7. FRONT-RUNNING & MEV (Maximum Extractable Value)
+   - Functions where transaction order affects outcome (first-come-first-serve)
+   - Public functions that accept value/bids visible in mempool before execution
+   - State changes based on msg.value or function parameters without privacy
+   - Auctions/sales where bid amounts are transparent before finalization
+   - Token swaps/trades without slippage protection or deadlines
+   - Functions that read and update the same price/value in one transaction
+   - Missing commit-reveal pattern for competitive processes
+   - Functions where knowing others' inputs provides advantage
+   - Economic operations that can be sandwiched (buy before, sell after)
+   - Any function where seeing pending transactions allows profitable interference
 
 8. TIMESTAMP DEPENDENCE
    - Using block.timestamp for critical logic
@@ -236,6 +242,17 @@ ANALYSIS METHODOLOGY:
 - Only report ACTUAL vulnerabilities with high confidence
 - **CRITICAL: COMPLETELY IGNORE commented-out code (// or /* */). Commented code is inactive and cannot be vulnerable.**
 
+SPECIAL ATTENTION FOR FRONT-RUNNING:
+- Examine ALL functions that accept ETH (payable) or modify economic state
+- Check if function inputs (msg.value, parameters) are visible before execution
+- Identify if transaction ordering matters (e.g., highest bidder wins)
+- Look for state updates that depend on publicly visible transaction data
+- Consider if a bot seeing the transaction in mempool could profit by:
+  * Submitting same function call with slightly better parameters
+  * Executing before the original transaction (front-running)
+  * Executing after seeing the transaction (back-running)
+  * Sandwiching the transaction (front and back-running)
+
 SEVERITY LEVELS:
 - Critical: Direct loss of funds, complete contract compromise
 - High: Significant security risk, likely exploitable
@@ -256,9 +273,17 @@ Each line is prefixed with its line number for precise reporting.
 ```
 
 ANALYSIS PROCEDURE:
+1. Read through the ENTIRE contract first to understand its purpose
 2. For EACH function, check for ALL vulnerability categories listed above
 3. Identify the EXACT lines where vulnerabilities occur
 4. Provide specific evidence and reasoning
+
+FRONT-RUNNING SPECIFIC CHECKS:
+- For auction/bidding contracts: Check if bids are visible before auction ends
+- For swap/trade contracts: Check for missing slippage protection
+- For any payable function: Consider if msg.value visibility enables attacks
+- For state-changing functions: Check if inputs are used directly without hiding
+- Ask: "If I see this transaction in mempool, can I profit from that knowledge?"
 
 Return findings in JSON format:
 {{{{
